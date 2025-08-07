@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>GPT 번역기</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #F8F9FA;
+        }
+        
+        .main-card {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 24px;
+            background-color: #FFFFFF;
+            border: 1px solid #DADCE0;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15);
+        }
+        
+        h1 { color: #202124; font-size: 1.5em; font-weight: 500; margin-top: 0; text-align: left; }
+        .subtitle { font-size: 0.9em; color: #5F6368; margin-bottom: 24px; text-align: left; }
+        
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #DADCE0;
+            border-radius: 4px;
+            resize: none;
+            box-sizing: border-box;
+            margin-bottom: 12px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        select, button {
+            padding: 10px 16px;
+            font-size: 16px;
+            border-radius: 4px;
+            border: 1px solid #DADCE0;
+            cursor: pointer;
+            background-color: #fff;
+        }
+        select { flex-grow: 1; }
+        button { background-color: #1A73E8; color: white; border: none; font-weight: bold; }
+        button:hover { background-color: #186ac9; }
+        #micBtn { background-color: #EA4335; }
+        #micBtn:hover { background-color: #d63c2c; }
+        
+        .result-box {
+            padding: 16px;
+            background-color: #F1F3F4;
+            border-radius: 4px;
+            border: 1px solid #DADCE0;
+            min-height: 100px;
+            text-align: left;
+        }
+        
+        #translation { font-size: 1.1em; color: #202124; white-space: pre-wrap; }
+        #pronunciation { margin-top: 8px; font-style: italic; color: #5F6368; font-size: 0.9em; }
+        
+        .loading { text-align: center; color: #888; }
+        #micStatus { color: #EA4335; font-size: 0.9em; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="main-card">
+        <h1>GPT 번역기</h1>
+        <div class="subtitle">내가 말하거나 텍스트를 입력하면 번역해 드립니다.</div>
+        
+        <textarea id="inputText" placeholder="번역할 텍스트를 입력하세요."></textarea>
+        
+        <div class="controls">
+            <select id="targetLang">
+                <option value="Vietnamese">베트남어</option>
+                <option value="Korean">한국어</option>
+                <option value="English">영어</option>
+            </select>
+            <select id="speechLang">
+                <option value="ko-KR">음성 입력: 한국어</option>
+                <option value="en-US">음성 입력: 영어</option>
+                <option value="vi-VN">음성 입력: 베트남어</option>
+            </select>
+            <button onclick="translateText()">번역하기</button>
+            <button id="micBtn" onclick="toggleMic()">🎤 음성 입력</button>
+        </div>
+        <div id="micStatus"></div>
+
+        <div class="result-box">
+            <div id="translation">번역 결과가 여기에 표시됩니다.</div>
+            <div id="pronunciation"></div>
+        </div>
+    </div>
+    
+    <script>
+        const API_SERVER_URL = ""; // 백엔드 URL을 여기에 입력할 것입니다.
+
+        const inputTextarea = document.getElementById('inputText');
+        const micStatusDiv = document.getElementById('micStatus');
+        const micBtn = document.getElementById('micBtn');
+        const speechLangSelect = document.getElementById('speechLang');
+        let recognition;
+
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                inputTextarea.value = transcript;
+                stopMic();
+            };
+
+            recognition.onerror = function(event) {
+                micStatusDiv.innerText = "음성 인식 오류: " + event.error;
+                stopMic();
+            };
+
+            recognition.onstart = function() {
+                micStatusDiv.innerText = "마이크가 켜졌습니다. 말씀하세요.";
+                micBtn.innerText = "🔴 녹음 중";
+            };
+
+            recognition.onend = function() {
+                micStatusDiv.innerText = "";
+                micBtn.innerText = "🎤 음성 입력";
+            };
+        } else {
+            micBtn.style.display = 'none';
+            speechLangSelect.style.display = 'none';
+            micStatusDiv.innerText = "죄송합니다. 이 브라우저는 음성 입력을 지원하지 않습니다.";
+        }
+
+        function toggleMic() {
+            if (micBtn.innerText === "🔴 녹음 중") {
+                stopMic();
+            } else {
+                startMic();
+            }
+        }
+
+        function startMic() {
+            if (recognition) {
+                const selectedLang = speechLangSelect.value;
+                recognition.lang = selectedLang;
+                inputTextarea.value = "";
+                recognition.start();
+            }
+        }
+
+        function stopMic() {
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        async function translateText() {
+            const inputText = inputTextarea.value;
+            const targetLang = document.getElementById('targetLang').value;
+            const translationDiv = document.getElementById('translation');
+            const pronunciationDiv = document.getElementById('pronunciation');
+
+            if (!inputText) {
+                translationDiv.innerText = "텍스트를 입력해주세요.";
+                pronunciationDiv.innerText = "";
+                return;
+            }
+
+            translationDiv.innerHTML = '<div class="loading">번역 중... 잠시만 기다려주세요.</div>';
+            pronunciationDiv.innerText = "";
+
+            try {
+                const response = await fetch(API_SERVER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ inputText, targetLang }),
+                });
+
+                const result = await response.json();
+
+                if (result.error) {
+                    translationDiv.innerText = "오류 발생: " + result.error;
+                    pronunciationDiv.innerText = "";
+                } else {
+                    translationDiv.innerText = result.translation;
+                    pronunciationDiv.innerText = '발음: ' + result.pronunciation;
+                }
+            } catch(e) {
+                translationDiv.innerText = "스크립트 실행 중 오류 발생: " + e.message;
+                pronunciationDiv.innerText = "";
+            }
+        }
+    </script>
+</body>
+</html>
