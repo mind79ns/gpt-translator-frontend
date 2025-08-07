@@ -144,6 +144,14 @@
                     <option value="vi-VN">음성: 베트남어</option>
                 </select>
             </div>
+            <select id="voiceSelect" style="margin-left: 10px;">
+                <option value="alloy">alloy (남성)</option>
+                <option value="echo">echo (남성)</option>
+                <option value="fable">fable (남성)</option>
+                <option value="onyx">onyx (남성)</option>
+                <option value="nova">nova (여성)</option>
+                <option value="shimmer">shimmer (여성)</option>
+            </select>
         </div>
         
         <div class="controls">
@@ -182,36 +190,29 @@
         const speakBtn = document.getElementById('speakBtn');
         const speechLangSelect = document.getElementById('speechLang');
         const autoDetectCheckbox = document.getElementById('autoDetect');
+        const voiceSelect = document.getElementById('voiceSelect');
         const debugInfo = document.getElementById('debugInfo');
         
         let recognition;
         let currentTranslation = '';
         let currentTargetLang = '';
-        let speechSynthesis = window.speechSynthesis;
+        let currentAudio = null;
 
-        // 언어 매핑
         const langMappings = {
             'ko': { name: '한국어', code: 'ko-KR', flag: '🇰🇷' },
             'en': { name: '영어', code: 'en-US', flag: '🇺🇸' },
             'vi': { name: '베트남어', code: 'vi-VN', flag: '🇻🇳' }
         };
 
-        // 자동 감지를 위한 다중 언어 인식 설정
-        const multiLangCodes = ['ko-KR', 'en-US', 'vi-VN'];
-        let recognitionAttempts = [];
-
-        // 디버그 정보 표시
         function showDebug(message) {
             debugInfo.style.display = 'block';
             debugInfo.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
         }
 
-        // 자동 감지 체크박스 이벤트
         autoDetectCheckbox.addEventListener('change', function() {
             speechLangSelect.style.display = this.checked ? 'none' : 'inline-block';
         });
 
-        // Web Speech Recognition 초기화
         if ('webkitSpeechRecognition' in window) {
             setupSpeechRecognition();
         } else {
@@ -230,14 +231,12 @@
                 
                 inputTextarea.value = transcript;
                 
-                // 감지된 언어 표시 (대략적인 추정)
                 const detectedLang = estimateLanguage(transcript);
                 detectedLangDiv.innerHTML = `${detectedLang.flag} 감지된 언어: ${detectedLang.name} (신뢰도: ${Math.round(confidence * 100)}%)`;
                 
                 showDebug(`음성 인식 완료: "${transcript}" (${detectedLang.name}, 신뢰도: ${Math.round(confidence * 100)}%)`);
                 stopMic();
                 
-                // 자동 번역 실행
                 if (transcript.trim()) {
                     setTimeout(() => translateText(), 500);
                 }
@@ -263,7 +262,6 @@
             };
         }
 
-        // 간단한 언어 감지 (문자 패턴 기반)
         function estimateLanguage(text) {
             const koreanRegex = /[가-힣]/g;
             const vietnameseRegex = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/g;
@@ -273,7 +271,7 @@
             
             if (koreanCount > 0) return langMappings['ko'];
             if (vietnameseCount > 0) return langMappings['vi'];
-            return langMappings['en']; // 기본값
+            return langMappings['en'];
         }
 
         function toggleMic() {
@@ -287,11 +285,9 @@
         function startMic() {
             if (recognition) {
                 if (autoDetectCheckbox.checked) {
-                    // 자동 감지 모드: 한국어로 시작 (가장 일반적)
                     recognition.lang = 'ko-KR';
                     showDebug('자동 언어 감지 모드로 음성 인식 시작');
                 } else {
-                    // 수동 선택 모드
                     recognition.lang = speechLangSelect.value;
                     showDebug(`수동 선택 모드: ${speechLangSelect.value}`);
                 }
@@ -307,57 +303,66 @@
             }
         }
 
-        // 음성 출력 기능
-        function speakTranslation() {
+        async function speakTranslation() {
             if (!currentTranslation) return;
             
-            // 기존 음성 중지
-            speechSynthesis.cancel();
-            
-            const utterance = new SpeechSynthesisUtterance(currentTranslation);
-            
-            // 번역 대상 언어에 따른 음성 설정
-            switch(currentTargetLang) {
-                case 'Vietnamese':
-                    utterance.lang = 'vi-VN';
-                    break;
-                case 'Korean':
-                    utterance.lang = 'ko-KR';
-                    break;
-                case 'English':
-                    utterance.lang = 'en-US';
-                    break;
-                default:
-                    utterance.lang = 'en-US';
+            // 재생 중일 경우 중지
+            if (currentAudio && !currentAudio.paused) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                speakBtn.innerHTML = '🔊 듣기';
+                return;
             }
             
-            utterance.rate = 0.8;
-            utterance.pitch = 1;
-            
-            utterance.onstart = function() {
-                speakBtn.innerHTML = '⏸️ 중지';
-                speakBtn.onclick = stopSpeaking;
-            };
-            
-            utterance.onend = function() {
-                speakBtn.innerHTML = '🔊 듣기';
-                speakBtn.onclick = speakTranslation;
-            };
-            
-            utterance.onerror = function(event) {
-                showDebug(`음성 출력 오류: ${event.error}`);
-                speakBtn.innerHTML = '🔊 듣기';
-                speakBtn.onclick = speakTranslation;
-            };
-            
-            speechSynthesis.speak(utterance);
-            showDebug(`음성 출력 시작: ${utterance.lang}`);
-        }
+            speakBtn.innerHTML = '🔄 로딩 중...';
+            speakBtn.disabled = true;
 
-        function stopSpeaking() {
-            speechSynthesis.cancel();
-            speakBtn.innerHTML = '🔊 듣기';
-            speakBtn.onclick = speakTranslation;
+            const voice = voiceSelect.value;
+            showDebug(`음성 합성 요청 시작: "${currentTranslation}" (음성: ${voice})`);
+
+            try {
+                const requestBody = { 
+                    action: 'speak',
+                    inputText: currentTranslation,
+                    voice: voice
+                };
+                
+                const response = await fetch(API_SERVER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody),
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                currentAudio = new Audio(audioUrl);
+
+                currentAudio.onplaying = function() {
+                    speakBtn.innerHTML = '⏸️ 중지';
+                    speakBtn.disabled = false;
+                };
+
+                currentAudio.onended = function() {
+                    speakBtn.innerHTML = '🔊 듣기';
+                    speakBtn.disabled = false;
+                };
+
+                currentAudio.play();
+                showDebug('음성 재생 시작');
+
+            } catch (error) {
+                showDebug(`음성 합성 오류: ${error.message}`);
+                speakBtn.innerHTML = '⚠️ 오류';
+                speakBtn.disabled = false;
+                alert('음성 합성 중 오류가 발생했습니다: ' + error.message);
+            }
         }
 
         async function translateText() {
@@ -373,6 +378,11 @@
                 return;
             }
 
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+
             translationDiv.innerHTML = '<div class="loading">🔄 번역 중... 잠시만 기다려주세요.</div>';
             pronunciationDiv.innerText = "";
             speakBtn.disabled = true;
@@ -382,7 +392,7 @@
             showDebug(`번역 요청 시작: "${inputText}" -> ${targetLang}`);
 
             try {
-                const requestBody = { inputText, targetLang };
+                const requestBody = { action: 'translate', inputText, targetLang };
                 
                 const response = await fetch(API_SERVER_URL, {
                     method: 'POST',
@@ -418,14 +428,12 @@
             }
         }
 
-        // 페이지 로드 시 기본 정보 표시
         window.addEventListener('load', function() {
             showDebug('고급 번역기 로드됨');
-            showDebug(`음성 합성 지원: ${speechSynthesis ? 'YES' : 'NO'}`);
-            showDebug(`음성 인식 지원: ${recognition ? 'YES' : 'NO'}`);
+            showDebug(`음성 합성 지원: ${'speechSynthesis' in window ? 'YES' : 'NO'}`);
+            showDebug(`음성 인식 지원: ${'webkitSpeechRecognition' in window ? 'YES' : 'NO'}`);
         });
 
-        // Enter 키로 번역 실행
         inputTextarea.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -435,3 +443,5 @@
     </script>
 </body>
 </html>
+}
+혹시 이 파일도 문제 없는지 확인해줄수 있어?
