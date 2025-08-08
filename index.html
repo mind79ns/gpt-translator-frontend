@@ -6,278 +6,41 @@
     <title>GPT 양방향 음성 번역기</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 10px;
-        }
-        
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            font-size: 20px;
-            margin-bottom: 10px;
-        }
-        
-        /* 언어 전환 토글 */
-        .language-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 50px;
-            padding: 8px 20px;
-            margin: 15px auto 0;
-            max-width: 280px;
-        }
-        
-        .lang-label {
-            font-size: 14px;
-            font-weight: bold;
-            min-width: 60px;
-            text-align: center;
-        }
-        
-        .toggle-switch {
-            background: white;
-            border-radius: 20px;
-            padding: 3px 8px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: transform 0.3s;
-        }
-        
-        .toggle-switch:hover {
-            transform: scale(1.1);
-        }
-        
-        /* 메인 컨텐츠 */
-        .content {
-            padding: 20px;
-        }
-        
-        .input-section {
-            margin-bottom: 20px;
-        }
-        
-        .input-wrapper {
-            position: relative;
-        }
-        
-        textarea {
-            width: 100%;
-            min-height: 100px;
-            padding: 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            font-size: 16px;
-            resize: none;
-            transition: border-color 0.3s;
-        }
-        
-        textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .detected-lang {
-            position: absolute;
-            top: 5px;
-            right: 10px;
-            font-size: 11px;
-            color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
-            padding: 2px 8px;
-            border-radius: 10px;
-        }
-        
-        /* 컨트롤 버튼들 */
-        .controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        
-        button {
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: bold;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-        }
-        
-        .btn-translate {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            grid-column: span 2;
-        }
-        
-        .btn-mic {
-            background: #ff6b6b;
-        }
-        
-        .btn-mic.recording {
-            animation: pulse 1.5s infinite;
-            background: #ff5252;
-        }
-        
-        .btn-clear {
-            background: #868e96;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        /* 결과 섹션 */
-        .result-section {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        
-        .result-label {
-            font-size: 12px;
-            color: #868e96;
-            font-weight: bold;
-        }
-        
-        .btn-speak {
-            background: #51cf66;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            cursor: pointer;
-        }
-        
-        .btn-speak:disabled {
-            background: #dee2e6;
-            cursor: not-allowed;
-        }
-        
-        #translation {
-            font-size: 18px;
-            color: #212529;
-            line-height: 1.5;
-            min-height: 40px;
-            word-break: break-word;
-        }
-        
-        /* 발음 섹션 (별도) */
-        .pronunciation-section {
-            background: #e9ecef;
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 15px;
-        }
-        
-        .pronunciation-label {
-            font-size: 11px;
-            color: #868e96;
-            margin-bottom: 5px;
-        }
-        
-        #pronunciation {
-            font-size: 14px;
-            color: #495057;
-            font-style: italic;
-            min-height: 20px;
-        }
-        
-        /* 설정 섹션 */
-        .settings {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        select {
-            flex: 1;
-            padding: 10px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            background: white;
-        }
-        
-        /* 상태 메시지 */
-        .status {
-            text-align: center;
-            font-size: 12px;
-            color: #868e96;
-            min-height: 20px;
-            margin-top: 10px;
-        }
-        
-        .status.error {
-            color: #ff6b6b;
-        }
-        
-        .status.success {
-            color: #51cf66;
-        }
-        
-        /* 로딩 애니메이션 */
-        .loading {
-            display: inline-block;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        /* 모바일 최적화 */
-        @media (max-width: 480px) {
-            .container {
-                border-radius: 0;
-                min-height: 100vh;
-            }
-            
-            .header h1 {
-                font-size: 18px;
-            }
-            
-            textarea {
-                font-size: 16px;
-                -webkit-text-size-adjust: 100%;
-            }
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 10px; }
+        .container { max-width: 500px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; }
+        .header h1 { font-size: 20px; margin-bottom: 10px; }
+        .language-toggle { display: flex; align-items: center; justify-content: center; gap: 15px; background: rgba(255,255,255,0.2); border-radius: 50px; padding: 8px 20px; margin: 15px auto 0; max-width: 280px; }
+        .lang-label { font-size: 14px; font-weight: bold; min-width: 60px; text-align: center; }
+        .toggle-switch { background: white; border-radius: 20px; padding: 3px 8px; cursor: pointer; font-size: 18px; transition: transform 0.3s; }
+        .toggle-switch:hover { transform: scale(1.1); }
+        .content { padding: 20px; }
+        .input-section { margin-bottom: 20px; }
+        .input-wrapper { position: relative; }
+        textarea { width: 100%; min-height: 100px; padding: 15px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 16px; resize: none; transition: border-color 0.3s; }
+        textarea:focus { outline: none; border-color: #667eea; }
+        .detected-lang { position: absolute; top: 5px; right: 10px; font-size: 11px; color: #667eea; background: rgba(102, 126, 234, 0.1); padding: 2px 8px; border-radius: 10px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        button { padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: bold; color: white; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-translate { background: linear-gradient(135deg, #667eea, #764ba2); grid-column: span 2; }
+        .btn-mic { background: #ff6b6b; }
+        .btn-mic.recording { animation: pulse 1.5s infinite; background: #ff5252; }
+        .btn-clear { background: #868e96; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .result-section { background: #f8f9fa; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .result-label { font-size: 12px; color: #868e96; font-weight: bold; }
+        .btn-speak { background: #51cf66; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+        .btn-speak:disabled { background: #dee2e6; cursor: not-allowed; }
+        #translation { font-size: 18px; color: #212529; line-height: 1.5; min-height: 40px; word-break: break-word; }
+        .pronunciation-section { background: #e9ecef; border-radius: 12px; padding: 12px; margin-bottom: 15px; }
+        .pronunciation-label { font-size: 11px; color: #868e96; margin-bottom: 5px; }
+        #pronunciation { font-size: 14px; color: #495057; font-style: italic; min-height: 20px; }
+        .settings { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; align-items: center; margin-bottom: 15px; }
+        select, input[type="range"] { flex: 1; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: white; }
+        .status { text-align: center; font-size: 12px; color: #868e96; min-height: 20px; margin-top: 10px; }
+        .status.error { color: #ff6b6b; }
+        .status.success { color: #51cf66; }
     </style>
 </head>
 <body>
@@ -285,7 +48,7 @@
         <div class="header">
             <h1>🌐 GPT 양방향 음성 번역기</h1>
             <div class="language-toggle">
-                <span class="lang-label" id="sourceLang">한국어</span>
+                <span class="lang-label" id="sourceLangLabel">한국어</span>
                 <span class="toggle-switch" onclick="toggleLanguage()">⇄</span>
                 <span class="lang-label" id="targetLangLabel">베트남어</span>
             </div>
@@ -301,39 +64,26 @@
             
             <div class="settings">
                 <select id="voiceSelect">
-                    <option value="nova">Nova (여성/선명)</option>
-                    <option value="alloy">Alloy (남성/차분)</option>
-                    <option value="shimmer">Shimmer (여성/부드러움)</option>
-                    <option value="echo">Echo (남성/깊음)</option>
-                    <option value="fable">Fable (남성/표현력)</option>
-                    <option value="onyx">Onyx (남성/저음)</option>
+                    <option value="nova">목소리: Nova (여성/선명)</option>
+                    <option value="alloy">목소리: Alloy (남성/차분)</option>
+                    <option value="shimmer">목소리: Shimmer (여성/부드러움)</option>
                 </select>
-                <select id="recognitionLang" style="display:none;">
-                    <option value="auto">자동 감지</option>
-                    <option value="ko-KR">한국어</option>
-                    <option value="vi-VN">베트남어</option>
-                    <option value="en-US">영어</option>
-                </select>
+                <div style="text-align:center;">
+                    <label for="volumeControl" style="font-size:12px; color:#868e96;">소리 크기</label>
+                    <input type="range" id="volumeControl" min="0.5" max="4" value="2" step="0.1">
+                </div>
             </div>
             
             <div class="controls">
-                <button class="btn-translate" onclick="handleTranslate()">
-                    <span>📝</span> 번역하기
-                </button>
-                <button class="btn-mic" id="micBtn" onclick="handleMic()">
-                    <span>🎤</span> <span id="micText">음성 입력</span>
-                </button>
-                <button class="btn-clear" onclick="clearAll()">
-                    <span>🗑️</span> 지우기
-                </button>
+                <button class="btn-translate" onclick="handleTranslate()"><span>📝</span> 번역하기</button>
+                <button class="btn-mic" id="micBtn" onclick="handleMic()"><span>🎤</span> <span id="micText">음성 입력</span></button>
+                <button class="btn-clear" onclick="clearAll()"><span>🗑️</span> 지우기</button>
             </div>
             
             <div class="result-section">
                 <div class="result-header">
                     <span class="result-label">번역 결과</span>
-                    <button class="btn-speak" id="speakBtn" onclick="handleSpeak()" disabled>
-                        🔊 듣기
-                    </button>
+                    <button class="btn-speak" id="speakBtn" onclick="handleSpeak()" disabled>🔊 듣기</button>
                 </div>
                 <div id="translation">번역 결과가 여기에 표시됩니다</div>
             </div>
@@ -348,19 +98,8 @@
     </div>
     
     <script>
-        // ===================================
-        // 전역 변수 및 설정
-        // ===================================
         const API_URL = 'https://knstranslator.netlify.app/.netlify/functions/translate';
         
-        let currentMode = 'ko-vi'; // 기본: 한국어 → 베트남어
-        let currentTranslation = '';
-        let currentTranslationLang = '';
-        let recognition = null;
-        let isRecording = false;
-        let currentAudio = null;
-        
-        // DOM 요소
         const els = {
             inputText: document.getElementById('inputText'),
             translation: document.getElementById('translation'),
@@ -369,72 +108,42 @@
             micBtn: document.getElementById('micBtn'),
             micText: document.getElementById('micText'),
             speakBtn: document.getElementById('speakBtn'),
-            sourceLang: document.getElementById('sourceLang'),
+            sourceLangLabel: document.getElementById('sourceLangLabel'),
             targetLangLabel: document.getElementById('targetLangLabel'),
             detectedLang: document.getElementById('detectedLang'),
             voiceSelect: document.getElementById('voiceSelect'),
-            recognitionLang: document.getElementById('recognitionLang')
+            volumeControl: document.getElementById('volumeControl'),
         };
         
-        // 언어 모드 설정
+        let currentMode = 'ko-vi';
+        let currentTranslation = '';
+        let recognition = null;
+        let isRecording = false;
+        let currentAudioSource = null;
+        let audioContext;
+
         const languageModes = {
-            'ko-vi': { 
-                source: '한국어', 
-                target: '베트남어',
-                targetCode: 'Vietnamese',
-                recognitionLangs: ['ko-KR', 'vi-VN']
-            },
-            'vi-ko': { 
-                source: '베트남어', 
-                target: '한국어',
-                targetCode: 'Korean',
-                recognitionLangs: ['vi-VN', 'ko-KR']
-            },
-            'ko-en': { 
-                source: '한국어', 
-                target: '영어',
-                targetCode: 'English',
-                recognitionLangs: ['ko-KR', 'en-US']
-            },
-            'en-ko': { 
-                source: '영어', 
-                target: '한국어',
-                targetCode: 'Korean',
-                recognitionLangs: ['en-US', 'ko-KR']
-            }
+            'ko-vi': { source: '한국어', target: '베트남어', targetCode: 'Vietnamese', recognitionLang: 'ko-KR' },
+            'vi-ko': { source: '베트남어', target: '한국어', targetCode: 'Korean', recognitionLang: 'vi-VN' }
         };
-        
-        // ===================================
-        // 언어 전환
-        // ===================================
+
         function toggleLanguage() {
-            // 모드 순환
-            const modes = Object.keys(languageModes);
-            const currentIndex = modes.indexOf(currentMode);
-            currentMode = modes[(currentIndex + 1) % modes.length];
-            
+            currentMode = (currentMode === 'ko-vi') ? 'vi-ko' : 'ko-vi';
             const mode = languageModes[currentMode];
-            els.sourceLang.textContent = mode.source;
+            els.sourceLangLabel.textContent = mode.source;
             els.targetLangLabel.textContent = mode.target;
-            
-            // 입력 초기화
             clearAll();
         }
-        
-        // ===================================
-        // 음성 인식 설정
-        // ===================================
+
         function setupSpeechRecognition() {
             if (!('webkitSpeechRecognition' in window)) {
-                els.micBtn.style.display = 'none';
+                els.micBtn.disabled = true;
                 showStatus('음성 인식을 지원하지 않는 브라우저입니다', 'error');
                 return;
             }
-            
             recognition = new webkitSpeechRecognition();
             recognition.continuous = false;
-            recognition.interimResults = true;
-            recognition.maxAlternatives = 3;
+            recognition.interimResults = false;
             
             recognition.onstart = () => {
                 isRecording = true;
@@ -444,131 +153,25 @@
             };
             
             recognition.onresult = (event) => {
-                let finalTranscript = '';
-                let interimTranscript = '';
-                
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcript;
-                    } else {
-                        interimTranscript += transcript;
-                    }
-                }
-                
-                els.inputText.value = finalTranscript || interimTranscript;
-                
-                if (finalTranscript) {
-                    detectLanguage(finalTranscript);
-                    stopRecording();
-                    setTimeout(() => handleTranslate(), 500);
-                }
+                const transcript = event.results[0][0].transcript;
+                els.inputText.value = transcript;
+                if (transcript) handleTranslate();
             };
             
-            recognition.onerror = (event) => {
-                console.error('음성 인식 오류:', event.error);
-                
-                // 언어 불일치 시 다른 언어로 재시도
-                if (event.error === 'no-speech' || event.error === 'audio-capture') {
-                    showStatus('음성을 감지할 수 없습니다. 다시 시도해주세요.', 'error');
-                } else if (event.error === 'not-allowed') {
-                    showStatus('마이크 권한이 필요합니다.', 'error');
-                } else {
-                    // 다른 언어로 재시도
-                    retryWithDifferentLanguage();
-                }
-                
-                stopRecording();
-            };
-            
+            recognition.onerror = (event) => { showStatus(`음성 인식 오류: ${event.error}`, 'error'); };
             recognition.onend = () => {
-                stopRecording();
+                isRecording = false;
+                els.micBtn.classList.remove('recording');
+                els.micText.textContent = '음성 입력';
             };
         }
-        
-        // ===================================
-        // 음성 인식 언어 자동 전환
-        // ===================================
-        function startRecognitionWithLanguage(langCode) {
-            if (!recognition) return;
-            
-            recognition.lang = langCode;
-            console.log('음성 인식 언어:', langCode);
-            
-            try {
-                recognition.start();
-            } catch (e) {
-                console.error('음성 인식 시작 오류:', e);
-                stopRecording();
-            }
-        }
-        
-        function retryWithDifferentLanguage() {
-            const mode = languageModes[currentMode];
-            const currentLang = recognition.lang;
-            const otherLang = mode.recognitionLangs.find(l => l !== currentLang);
-            
-            if (otherLang) {
-                console.log(`언어 변경 재시도: ${currentLang} → ${otherLang}`);
-                setTimeout(() => {
-                    startRecognitionWithLanguage(otherLang);
-                }, 500);
-            }
-        }
-        
-        function stopRecording() {
-            isRecording = false;
-            els.micBtn.classList.remove('recording');
-            els.micText.textContent = '음성 입력';
-            
-            if (recognition) {
-                try {
-                    recognition.stop();
-                } catch (e) {
-                    console.error('음성 인식 중지 오류:', e);
-                }
-            }
-        }
-        
-        // ===================================
-        // 언어 감지
-        // ===================================
-        function detectLanguage(text) {
-            const koreanRegex = /[가-힣]/;
-            const vietnameseRegex = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđĐ]/i;
-            
-            let detected = '';
-            if (koreanRegex.test(text)) {
-                detected = '한국어 감지됨';
-            } else if (vietnameseRegex.test(text)) {
-                detected = '베트남어 감지됨';
-            } else {
-                detected = '영어 감지됨';
-            }
-            
-            els.detectedLang.textContent = detected;
-            setTimeout(() => {
-                els.detectedLang.textContent = '';
-            }, 3000);
-        }
-        
-        // ===================================
-        // 번역 처리
-        // ===================================
+
         async function handleTranslate() {
             const text = els.inputText.value.trim();
-            if (!text) {
-                showStatus('번역할 텍스트를 입력해주세요', 'error');
-                return;
-            }
+            if (!text) return;
             
-            // UI 초기화
-            els.translation.innerHTML = '<span class="loading">🔄</span> 번역 중...';
-            els.pronunciation.textContent = '...';
-            els.speakBtn.disabled = true;
-            currentTranslation = '';
-            
-            const mode = languageModes[currentMode];
+            clearResult();
+            els.translation.innerHTML = '<span>🔄</span> 번역 중...';
             
             try {
                 const response = await fetch(API_URL, {
@@ -577,56 +180,32 @@
                     body: JSON.stringify({
                         action: 'translate',
                         inputText: text,
-                        targetLang: mode.targetCode
+                        targetLang: languageModes[currentMode].targetCode
                     })
                 });
-                
                 const data = await response.json();
+                if (data.error) throw new Error(data.error);
                 
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                // 결과 표시
                 currentTranslation = data.translation;
-                currentTranslationLang = mode.targetCode;
-                
                 els.translation.textContent = currentTranslation;
-                els.pronunciation.textContent = data.pronunciation || '발음 정보 없음';
+                els.pronunciation.textContent = data.pronunciation || ' ';
                 els.speakBtn.disabled = false;
-                
                 showStatus('✅ 번역 완료', 'success');
                 
-                // 자동 음성 재생 (옵션)
-                if (document.getElementById('autoSpeak')?.checked) {
-                    setTimeout(() => handleSpeak(), 500);
-                }
-                
             } catch (error) {
-                console.error('번역 오류:', error);
                 els.translation.textContent = '번역 실패';
-                els.pronunciation.textContent = '';
                 showStatus(`❌ ${error.message}`, 'error');
             }
         }
-        
-        // ===================================
-        // TTS (음성 재생)
-        // ===================================
+
+        // ⭐ [핵심 수정] 안정적인 오디오 재생 및 볼륨 조절 기능
         async function handleSpeak() {
             if (!currentTranslation) return;
-            
-            // 재생 중이면 중지
-            if (currentAudio && !currentAudio.paused) {
-                currentAudio.pause();
-                currentAudio.currentTime = 0;
-                els.speakBtn.textContent = '🔊 듣기';
-                return;
-            }
+            if (currentAudioSource) { currentAudioSource.stop(); return; }
             
             els.speakBtn.textContent = '⏳';
             els.speakBtn.disabled = true;
-            
+
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
@@ -635,163 +214,76 @@
                         action: 'speak',
                         inputText: currentTranslation,
                         voice: els.voiceSelect.value,
-                        language: currentTranslationLang  // 언어 명시
                     })
                 });
                 
-                const data = await response.json();
+                if (!response.ok) throw new Error(`서버 오류 ${response.status}`);
                 
-                if (data.error) {
-                    throw new Error(data.error);
-                }
+                // 오디오 파일을 직접 Blob으로 받아서 오류 해결
+                const audioBlob = await response.blob();
                 
-                if (!data.audio) {
-                    throw new Error('오디오 데이터 없음');
-                }
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                const source = audioContext.createBufferSource();
+                const gainNode = audioContext.createGain();
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+                gainNode.gain.value = parseFloat(els.volumeControl.value); // 슬라이더 값으로 볼륨 조절
+                source.buffer = audioBuffer;
+                source.connect(gainNode).connect(audioContext.destination);
+                source.start(0);
+
+                currentAudioSource = source;
+                els.speakBtn.textContent = '⏸️';
+                els.speakBtn.disabled = false;
                 
-                // Base64 디코딩
-                const binaryString = atob(data.audio);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                
-                const blob = new Blob([bytes], { type: 'audio/mpeg' });
-                const audioUrl = URL.createObjectURL(blob);
-                
-                currentAudio = new Audio(audioUrl);
-                
-                currentAudio.onplaying = () => {
-                    els.speakBtn.textContent = '⏸️';
-                    els.speakBtn.disabled = false;
-                };
-                
-                currentAudio.onended = () => {
+                source.onended = () => {
                     els.speakBtn.textContent = '🔊 듣기';
-                    els.speakBtn.disabled = false;
+                    currentAudioSource = null;
                 };
-                
-                currentAudio.onerror = (e) => {
-                    console.error('오디오 재생 오류:', e);
-                    els.speakBtn.textContent = '🔊 듣기';
-                    els.speakBtn.disabled = false;
-                    showStatus('음성 재생 실패', 'error');
-                };
-                
-                await currentAudio.play();
-                showStatus('🔊 재생 중...', 'success');
-                
+
             } catch (error) {
-                console.error('TTS 오류:', error);
                 els.speakBtn.textContent = '🔊 듣기';
                 els.speakBtn.disabled = false;
                 showStatus(`음성 재생 실패: ${error.message}`, 'error');
             }
         }
         
-        // ===================================
-        // 음성 입력 처리
-        // ===================================
         function handleMic() {
-            if (!recognition) {
-                showStatus('음성 인식을 사용할 수 없습니다', 'error');
-                return;
-            }
-            
             if (isRecording) {
-                stopRecording();
+                recognition.stop();
             } else {
-                els.inputText.value = '';
-                els.detectedLang.textContent = '';
-                
-                // 양방향 모드에 따라 첫 번째 언어로 시작
-                const mode = languageModes[currentMode];
-                startRecognitionWithLanguage(mode.recognitionLangs[0]);
+                clearAll();
+                recognition.lang = languageModes[currentMode].recognitionLang;
+                recognition.start();
             }
         }
         
-        // ===================================
-        // 유틸리티 함수들
-        // ===================================
-        function clearAll() {
-            els.inputText.value = '';
+        function clearResult() {
             els.translation.textContent = '번역 결과가 여기에 표시됩니다';
             els.pronunciation.textContent = '발음 표기가 여기에 표시됩니다';
             els.detectedLang.textContent = '';
             els.speakBtn.disabled = true;
             currentTranslation = '';
-            
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
-            
-            showStatus('', '');
+            if (currentAudioSource) currentAudioSource.stop();
         }
-        
+
+        function clearAll() {
+            els.inputText.value = '';
+            clearResult();
+        }
+
         function showStatus(message, type = '') {
             els.status.textContent = message;
+
             els.status.className = 'status ' + type;
-            
-            if (message) {
-                setTimeout(() => {
-                    els.status.textContent = '';
-                    els.status.className = 'status';
-                }, 3000);
-            }
+            if (message) setTimeout(() => els.status.className = 'status', 3000);
         }
-        
-        // ===================================
-        // 키보드 단축키
-        // ===================================
-        document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + Enter: 번역
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                e.preventDefault();
-                handleTranslate();
-            }
-            
-            // Ctrl/Cmd + Space: 음성 입력
-            if ((e.ctrlKey || e.metaKey) && e.key === ' ') {
-                e.preventDefault();
-                handleMic();
-            }
-            
-            // Ctrl/Cmd + Shift + C: 지우기
-            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
-                e.preventDefault();
-                clearAll();
-            }
-        });
-        
-        // 텍스트 입력 시 언어 감지
-        els.inputText.addEventListener('input', (e) => {
-            if (e.target.value.length > 2) {
-                detectLanguage(e.target.value);
-            }
-        });
-        
-        // Enter 키로 번역
-        els.inputText.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleTranslate();
-            }
-        });
-        
-        // ===================================
-        // 초기화
-        // ===================================
+
         window.addEventListener('load', () => {
             setupSpeechRecognition();
             showStatus('준비 완료', 'success');
-            
-            // 모바일 여부 확인
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            if (isMobile) {
-                // 모바일 최적화
-                els.inputText.style.fontSize = '16px';
-            }
         });
     </script>
 </body>
