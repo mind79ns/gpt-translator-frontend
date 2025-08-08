@@ -189,7 +189,6 @@
         
         let recognition;
         let currentTranslation = '';
-        let currentTargetLang = '';
         let currentAudio = null;
 
         const langMappings = {
@@ -201,7 +200,6 @@
         function showDebug(message) {
             debugInfo.style.display = 'block';
             debugInfo.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
-            // 최대 10개 로그만 유지
             const lines = debugInfo.innerHTML.split('<br>');
             if (lines.length > 10) {
                 debugInfo.innerHTML = lines.slice(-10).join('<br>');
@@ -246,6 +244,7 @@
                 showDebug(`음성 인식 오류: ${event.error}`);
                 stopMic();
             };
+
 
             recognition.onstart = function() {
                 micStatusDiv.innerText = "🎤 마이크가 켜졌습니다. 말씀하세요...";
@@ -302,11 +301,10 @@
             }
         }
 
-        // ⭐ 수정된 speakTranslation 함수 - Base64 디코딩 처리
+        // ⭐⭐⭐ 최종 수정된 speakTranslation 함수 ⭐⭐⭐
         async function speakTranslation() {
             if (!currentTranslation) return;
             
-            // 재생 중일 경우 중지
             if (currentAudio && !currentAudio.paused) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
@@ -324,15 +322,12 @@
                 const requestBody = { 
                     action: 'speak',
                     inputText: currentTranslation,
-                    voice: voice,
-                    targetLang: currentTargetLang
+                    voice: voice
                 };
                 
                 const response = await fetch(API_SERVER_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestBody),
                 });
                 
@@ -340,59 +335,41 @@
                 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                    throw new Error(errorData.error || `서버 오류: ${response.status}`);
                 }
 
-                // ⭐ JSON으로 base64 데이터 받기
-                const result = await response.json();
-                showDebug(`오디오 데이터 크기: ${result.size} bytes`);
+                // 💡 [핵심 변경점] 응답을 JSON이 아닌 오디오 파일(Blob)으로 직접 받습니다.
+                const audioBlob = await response.blob();
+                showDebug(`오디오 Blob 받기 성공: ${audioBlob.size} bytes`);
                 
-                if (!result.audio) {
-                    throw new Error('오디오 데이터가 없습니다');
-                }
-                
-                // ⭐ Base64를 Blob으로 변환
-                const binaryString = atob(result.audio);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                
-                const audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
-                showDebug(`Blob 생성 완료: ${audioBlob.size} bytes`);
-                
+                // 오디오 파일을 재생할 수 있는 임시 URL 생성
                 const audioUrl = URL.createObjectURL(audioBlob);
                 currentAudio = new Audio(audioUrl);
 
-                currentAudio.onloadeddata = function() {
-                    showDebug('오디오 로드 완료');
-                };
-
-                currentAudio.onplaying = function() {
+                // 오디오 상태에 따라 버튼 텍스트 변경
+                currentAudio.onplaying = () => {
                     showDebug('재생 시작');
                     speakBtn.innerHTML = '⏸️ 중지';
                     speakBtn.disabled = false;
                 };
 
-                currentAudio.onended = function() {
+                currentAudio.onended = () => {
                     showDebug('재생 완료');
                     speakBtn.innerHTML = '🔊 듣기';
-                    speakBtn.disabled = false;
                 };
-
-                currentAudio.onerror = function(e) {
+                
+                currentAudio.onerror = (e) => {
                     console.error('오디오 재생 오류:', e);
-                    showDebug('오디오 재생 오류 발생');
+                    showDebug('오디오 재생 중 오류 발생');
                     speakBtn.innerHTML = '⚠️ 오류';
                     speakBtn.disabled = false;
                 };
 
-                // 재생 시작
                 await currentAudio.play();
 
             } catch (error) {
                 showDebug(`음성 합성 오류: ${error.message}`);
-                console.error('TTS 오류:', error);
+                console.error('TTS 처리 오류:', error);
                 speakBtn.innerHTML = '⚠️ 오류';
                 speakBtn.disabled = false;
                 alert('음성 합성 중 오류가 발생했습니다: ' + error.message);
@@ -412,7 +389,6 @@
                 return;
             }
 
-            // 기존 오디오 중지
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
@@ -422,7 +398,6 @@
             pronunciationDiv.innerText = "";
             speakBtn.disabled = true;
             currentTranslation = '';
-            currentTargetLang = targetLang;
 
             showDebug(`번역 요청: "${inputText.substring(0, 30)}..." -> ${targetLang}`);
 
@@ -435,9 +410,7 @@
                 
                 const response = await fetch(API_SERVER_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestBody),
                 });
 
@@ -445,14 +418,13 @@
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    throw new Error(`서버 오류 ${response.status}: ${errorText}`);
                 }
 
                 const result = await response.json();
 
                 if (result.error) {
                     translationDiv.innerHTML = `<div class="error">오류 발생: ${result.error}</div>`;
-                    pronunciationDiv.innerText = "";
                 } else {
                     currentTranslation = result.translation || "번역 결과가 없습니다.";
                     translationDiv.innerText = currentTranslation;
@@ -462,19 +434,15 @@
                 }
             } catch(error) {
                 showDebug(`Fetch 오류: ${error.message}`);
-                translationDiv.innerHTML = `<div class="error">네트워크 오류: ${error.message}</div>`;
-                pronunciationDiv.innerText = "";
+                translationDiv.innerHTML = `<div class="error">네트워크 오류가 발생했습니다.</div>`;
             }
         }
 
-        // 페이지 로드 시
         window.addEventListener('load', function() {
             showDebug('번역기 로드 완료');
-            showDebug(`음성 인식: ${'webkitSpeechRecognition' in window ? '지원' : '미지원'}`);
             console.log('GPT 번역기 준비 완료');
         });
 
-        // Enter 키로 번역
         inputTextarea.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -482,7 +450,6 @@
             }
         });
 
-        // 디버그 모드 토글 (Ctrl+D)
         document.addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.key === 'd') {
                 e.preventDefault();
