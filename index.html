@@ -105,12 +105,6 @@
             color: #1A73E8;
         }
         
-        .lang-confidence {
-            font-size: 0.8em;
-            color: #666;
-            margin-left: 8px;
-        }
-        
         .debug-info {
             margin-top: 20px;
             padding: 10px;
@@ -207,6 +201,11 @@
         function showDebug(message) {
             debugInfo.style.display = 'block';
             debugInfo.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            // 최대 10개 로그만 유지
+            const lines = debugInfo.innerHTML.split('<br>');
+            if (lines.length > 10) {
+                debugInfo.innerHTML = lines.slice(-10).join('<br>');
+            }
         }
 
         autoDetectCheckbox.addEventListener('change', function() {
@@ -234,7 +233,7 @@
                 const detectedLang = estimateLanguage(transcript);
                 detectedLangDiv.innerHTML = `${detectedLang.flag} 감지된 언어: ${detectedLang.name} (신뢰도: ${Math.round(confidence * 100)}%)`;
                 
-                showDebug(`음성 인식 완료: "${transcript}" (${detectedLang.name}, 신뢰도: ${Math.round(confidence * 100)}%)`);
+                showDebug(`음성 인식 완료: "${transcript}" (${detectedLang.name})`);
                 stopMic();
                 
                 if (transcript.trim()) {
@@ -264,7 +263,7 @@
 
         function estimateLanguage(text) {
             const koreanRegex = /[가-힣]/g;
-            const vietnameseRegex = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/g;
+            const vietnameseRegex = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/gi;
             
             const koreanCount = (text.match(koreanRegex) || []).length;
             const vietnameseCount = (text.match(vietnameseRegex) || []).length;
@@ -303,7 +302,8 @@
             }
         }
 
- async function speakTranslation() {
+        // ⭐ 수정된 speakTranslation 함수 - Base64 디코딩 처리
+        async function speakTranslation() {
             if (!currentTranslation) return;
             
             // 재생 중일 경우 중지
@@ -318,14 +318,14 @@
             speakBtn.disabled = true;
 
             const voice = voiceSelect.value;
-            showDebug(`음성 합성 요청 시작: "${currentTranslation}" (음성: ${voice})`);
+            showDebug(`음성 합성 요청: "${currentTranslation.substring(0, 30)}..." (${voice})`);
 
             try {
                 const requestBody = { 
                     action: 'speak',
                     inputText: currentTranslation,
                     voice: voice,
-                    targetLang: currentTargetLang // ✅ 이 부분이 추가되었습니다.
+                    targetLang: currentTargetLang
                 };
                 
                 const response = await fetch(API_SERVER_URL, {
@@ -336,30 +336,63 @@
                     body: JSON.stringify(requestBody),
                 });
                 
+                showDebug(`TTS 응답 상태: ${response.status}`);
+                
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
                 }
 
-                const audioBlob = await response.blob();
+                // ⭐ JSON으로 base64 데이터 받기
+                const result = await response.json();
+                showDebug(`오디오 데이터 크기: ${result.size} bytes`);
+                
+                if (!result.audio) {
+                    throw new Error('오디오 데이터가 없습니다');
+                }
+                
+                // ⭐ Base64를 Blob으로 변환
+                const binaryString = atob(result.audio);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                
+                const audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
+                showDebug(`Blob 생성 완료: ${audioBlob.size} bytes`);
+                
                 const audioUrl = URL.createObjectURL(audioBlob);
                 currentAudio = new Audio(audioUrl);
 
+                currentAudio.onloadeddata = function() {
+                    showDebug('오디오 로드 완료');
+                };
+
                 currentAudio.onplaying = function() {
+                    showDebug('재생 시작');
                     speakBtn.innerHTML = '⏸️ 중지';
                     speakBtn.disabled = false;
                 };
 
                 currentAudio.onended = function() {
+                    showDebug('재생 완료');
                     speakBtn.innerHTML = '🔊 듣기';
                     speakBtn.disabled = false;
                 };
 
-                currentAudio.play();
-                showDebug('음성 재생 시작');
+                currentAudio.onerror = function(e) {
+                    console.error('오디오 재생 오류:', e);
+                    showDebug('오디오 재생 오류 발생');
+                    speakBtn.innerHTML = '⚠️ 오류';
+                    speakBtn.disabled = false;
+                };
+
+                // 재생 시작
+                await currentAudio.play();
 
             } catch (error) {
                 showDebug(`음성 합성 오류: ${error.message}`);
+                console.error('TTS 오류:', error);
                 speakBtn.innerHTML = '⚠️ 오류';
                 speakBtn.disabled = false;
                 alert('음성 합성 중 오류가 발생했습니다: ' + error.message);
@@ -379,6 +412,7 @@
                 return;
             }
 
+            // 기존 오디오 중지
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
@@ -390,10 +424,14 @@
             currentTranslation = '';
             currentTargetLang = targetLang;
 
-            showDebug(`번역 요청 시작: "${inputText}" -> ${targetLang}`);
+            showDebug(`번역 요청: "${inputText.substring(0, 30)}..." -> ${targetLang}`);
 
             try {
-                const requestBody = { action: 'translate', inputText, targetLang };
+                const requestBody = { 
+                    action: 'translate', 
+                    inputText, 
+                    targetLang 
+                };
                 
                 const response = await fetch(API_SERVER_URL, {
                     method: 'POST',
@@ -403,7 +441,7 @@
                     body: JSON.stringify(requestBody),
                 });
 
-                showDebug(`응답 상태: ${response.status} ${response.statusText}`);
+                showDebug(`번역 응답 상태: ${response.status}`);
 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -420,7 +458,7 @@
                     translationDiv.innerText = currentTranslation;
                     pronunciationDiv.innerText = result.pronunciation ? '발음: ' + result.pronunciation : '';
                     speakBtn.disabled = false;
-                    showDebug(`번역 완료: ${currentTranslation}`);
+                    showDebug(`번역 완료`);
                 }
             } catch(error) {
                 showDebug(`Fetch 오류: ${error.message}`);
@@ -429,20 +467,28 @@
             }
         }
 
+        // 페이지 로드 시
         window.addEventListener('load', function() {
-            showDebug('고급 번역기 로드됨');
-            showDebug(`음성 합성 지원: ${'speechSynthesis' in window ? 'YES' : 'NO'}`);
-            showDebug(`음성 인식 지원: ${'webkitSpeechRecognition' in window ? 'YES' : 'NO'}`);
+            showDebug('번역기 로드 완료');
+            showDebug(`음성 인식: ${'webkitSpeechRecognition' in window ? '지원' : '미지원'}`);
+            console.log('GPT 번역기 준비 완료');
         });
 
+        // Enter 키로 번역
         inputTextarea.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 translateText();
             }
         });
+
+        // 디버그 모드 토글 (Ctrl+D)
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'd') {
+                e.preventDefault();
+                debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
+            }
+        });
     </script>
 </body>
 </html>
-}
-혹시 이 파일도 문제 없는지 확인해줄수 있어?
