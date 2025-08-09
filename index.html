@@ -224,10 +224,11 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        action: 'speak',
-                        inputText: currentTranslation,
-                        voice: els.voiceSelect.value
-                    })
+                                    action: 'speak',
+                                    inputText: currentTranslation,
+                                    voice: els.voiceSelect.value,
+                                    language: els.targetLangSelect.value  // 언어 정보 추가
+                           })
                 });
                 
                 if (!response.ok) throw new Error(`서버 오류 ${response.status}`);
