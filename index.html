@@ -35,6 +35,8 @@
         #pronunciation { font-size: 14px; color: #495057; font-style: italic; min-height: 20px; }
         .settings { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; align-items: center; margin-bottom: 15px; }
         .settings select, .settings input[type="range"] { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: white; }
+        .volume-control { display: flex; flex-direction: column; align-items: center; }
+        .volume-value { font-size: 11px; color: #667eea; margin-top: 2px; }
         .status { text-align: center; font-size: 12px; color: #868e96; min-height: 20px; margin-top: 10px; }
         .status.error { color: #ff6b6b; }
         .status.success { color: #51cf66; }
@@ -73,9 +75,10 @@
                     <option value="fable">목소리: Fable (남성/표현력)</option>
                     <option value="onyx">목소리: Onyx (남성/저음)</option>
                 </select>
-                <div style="text-align:center;">
+                <div class="volume-control">
                     <label for="volumeControl" style="font-size:12px; color:#868e96;">소리 크기</label>
-                    <input type="range" id="volumeControl" min="0.5" max="4" value="2" step="0.1">
+                    <input type="range" id="volumeControl" min="0" max="1" value="0.7" step="0.1">
+                    <span class="volume-value" id="volumeValue">70%</span>
                 </div>
             </div>
             
@@ -117,15 +120,20 @@
             targetLangSelect: document.getElementById('targetLangSelect'),
             voiceSelect: document.getElementById('voiceSelect'),
             volumeControl: document.getElementById('volumeControl'),
+            volumeValue: document.getElementById('volumeValue'),
         };
         
         let currentTranslation = '';
         let recognition;
         let isRecording = false;
-        let currentAudioSource = null;
-        let audioContext;
+        let currentAudio = null;
 
         const langCodeMap = { 'Korean': 'ko-KR', 'Vietnamese': 'vi-VN', 'English': 'en-US' };
+
+        // 볼륨 슬라이더 값 표시
+        els.volumeControl.addEventListener('input', (e) => {
+            els.volumeValue.textContent = Math.round(e.target.value * 100) + '%';
+        });
 
         function swapLanguages() {
             const sourceValue = els.sourceLangSelect.value;
@@ -198,7 +206,15 @@
 
         async function handleSpeak() {
             if (!currentTranslation) return;
-            if (currentAudioSource) { currentAudioSource.stop(); return; }
+            
+            // 이미 재생 중이면 중지
+            if (currentAudio && !currentAudio.paused) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                els.speakBtn.textContent = '🔊 듣기';
+                currentAudio = null;
+                return;
+            }
             
             els.speakBtn.textContent = '⏳';
             els.speakBtn.disabled = true;
@@ -217,27 +233,31 @@
                 if (!response.ok) throw new Error(`서버 오류 ${response.status}`);
                 
                 const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
                 
-                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-                const source = audioContext.createBufferSource();
-                const gainNode = audioContext.createGain();
-                const arrayBuffer = await audioBlob.arrayBuffer();
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-                gainNode.gain.value = parseFloat(els.volumeControl.value);
-                source.buffer = audioBuffer;
-                source.connect(gainNode).connect(audioContext.destination);
-                source.start(0);
-
-                currentAudioSource = source;
-                els.speakBtn.textContent = '⏸️';
-                els.speakBtn.disabled = false;
+                // 간단한 Audio 객체 사용 (볼륨 제어 개선)
+                currentAudio = new Audio(audioUrl);
+                currentAudio.volume = parseFloat(els.volumeControl.value);
                 
-                source.onended = () => {
-                    els.speakBtn.textContent = '🔊 듣기';
-                    currentAudioSource = null;
+                currentAudio.onplaying = () => {
+                    els.speakBtn.textContent = '⏸️';
+                    els.speakBtn.disabled = false;
                 };
+                
+                currentAudio.onended = () => {
+                    els.speakBtn.textContent = '🔊 듣기';
+                    els.speakBtn.disabled = false;
+                    currentAudio = null;
+                };
+                
+                currentAudio.onerror = () => {
+                    els.speakBtn.textContent = '🔊 듣기';
+                    els.speakBtn.disabled = false;
+                    showStatus('음성 재생 실패', 'error');
+                };
+                
+                await currentAudio.play();
+                
             } catch (error) {
                 els.speakBtn.textContent = '🔊 듣기';
                 els.speakBtn.disabled = false;
@@ -259,7 +279,10 @@
             els.translation.textContent = '번역 결과가 여기에 표시됩니다';
             els.pronunciation.textContent = '발음 표기가 여기에 표시됩니다';
             els.speakBtn.disabled = true;
-            if (currentAudioSource) currentAudioSource.stop();
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
         }
 
         function clearAll() {
@@ -272,6 +295,14 @@
             els.status.className = 'status ' + type;
             if (message) setTimeout(() => { els.status.textContent = ''; els.status.className = 'status'; }, 3000);
         }
+
+        // Enter 키로 번역
+        els.inputText.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleTranslate();
+            }
+        });
 
         window.addEventListener('load', () => {
             setupSpeechRecognition();
