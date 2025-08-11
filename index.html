@@ -874,18 +874,17 @@
                 const audioUrl = URL.createObjectURL(audioBlob);
                 
                 // handleSpeak 함수의 오디오 생성 부분
-currentAudio = new Audio(audioUrl);
+                currentAudio = new Audio(audioUrl);
 
-// ⭐ 볼륨 증폭 로직 - 베트남어는 2배 증폭
-let volumeMultiplier = 1.0;
+// ⭐ 베트남어 강력 볼륨 부스터 (2.5배 증폭)
+let finalVolume = parseFloat(els.volumeControl.value);
 if (els.targetLangSelect.value === 'Vietnamese') {
-    volumeMultiplier = 2.0;  // 베트남어는 2배 증폭
+    finalVolume = Math.min(1.0, finalVolume * 2.5); // 베트남어는 2.5배 증폭
+    console.log(`🔊 베트남어 볼륨 부스터: ${els.volumeControl.value} → ${finalVolume} (2.5배 증폭)`);
+} else {
+    console.log(`🔊 일반 볼륨: ${finalVolume}`);
 }
-
-const desiredVolume = parseFloat(els.volumeControl.value) * volumeMultiplier;
-currentAudio.volume = Math.min(1.0, desiredVolume);  // 최대 1.0
-
-console.log(`볼륨 설정: 기본=${els.volumeControl.value}, 증폭=${volumeMultiplier}x, 최종=${currentAudio.volume}`);
+currentAudio.volume = finalVolume;
 
 currentAudio.preload = 'auto';
                 
