@@ -912,6 +912,21 @@ function handleVoiceTranslate() {
 
 /* event bindings */
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('[DEBUG] integrated_tuned script loaded.');
+  window.addEventListener('error', function(err) {
+    console.error('[PAGE ERROR]', err);
+    if (els.status) els.status.textContent = '[JS ERROR] ' + (err && err.message ? err.message : JSON.stringify(err));
+  });
+  // Ensure primary buttons are enabled in case they were disabled
+  setTimeout(() => {
+    try {
+      if (els.voiceBtn) els.voiceBtn.disabled = false;
+      if (els.speakBtn) els.speakBtn.disabled = false;
+      if (els.copyBtn) els.copyBtn.disabled = false;
+      if (els.voiceBtn) els.voiceBtn.classList.remove('disabled');
+    } catch(e){ console.warn('enable buttons fail', e); }
+  }, 300);
+
   loadSettings();
   setupSpeechRecognition();
   showStatus('준비 완료', 'success');
