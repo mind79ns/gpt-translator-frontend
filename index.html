@@ -495,16 +495,14 @@
         </div>
     </div>
     
-    
 <script>
-/* 통합 스크립트: 원본 UI(HTML/CSS)는 그대로 유지합니다.
-   - 번역: 서버(Netlify function) 호출 (action: 'translate')
-   - TTS: 베트남어는 브라우저 Web Speech API 우선, 그 외는 서버 TTS(action: 'speak')
-   - 기존 element ID들을 그대로 사용합니다.
-   - 최소한의 DOM 변경만 수행하므로 UI 구조는 원본과 동일하게 유지됩니다.
+/* 🎯 GPT 양방향 음성 번역기 - 완전 통합 스크립트
+   ✅ 베트남어 자연스러운 음성 (Google TTS 우선)
+   ✅ Web Speech API + OpenAI TTS 하이브리드
+   ✅ 최적화된 번역 및 발음 시스템
 */
 
-const API_URL = 'https://knstranslator.netlify.app/.netlify/functions/translate'; // 배포 도메인으로 교체하세요
+const API_URL = 'https://knstranslator.netlify.app/.netlify/functions/translate';
 
 const els = {
   inputText: document.getElementById('inputText'),
@@ -546,24 +544,43 @@ const langCodeMap = {
   'English': 'en-US'
 };
 
+// ===== 유틸리티 함수 =====
 function showStatus(message, type = '') {
   if (!els.status) return;
   els.status.textContent = message;
   els.status.className = 'status ' + type;
-  if (message) setTimeout(() => { els.status.textContent = ''; els.status.className = 'status'; }, 3000);
+  if (message) setTimeout(() => { 
+    els.status.textContent = ''; 
+    els.status.className = 'status'; 
+  }, 3000);
 }
 
+function escapeHtml(unsafe) {
+  if (!unsafe) return '';
+  return unsafe.replace(/[&<"']/g, function (m) {
+    return ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;' }[m]);
+  });
+}
+
+// ===== 설정 관리 =====
 function loadSettings() {
   try {
     const savedVolume = localStorage.getItem(STORAGE_KEYS.volume) || '0.8';
     if (els.volumeControl) els.volumeControl.value = savedVolume;
     if (els.volumeValue) els.volumeValue.textContent = Math.round(savedVolume * 100) + '%';
+    
     const savedVoice = localStorage.getItem(STORAGE_KEYS.voice);
     if (savedVoice && els.voiceSelect) els.voiceSelect.value = savedVoice;
+    
     const savedSourceLang = localStorage.getItem(STORAGE_KEYS.sourceLang);
     if (savedSourceLang && els.sourceLangSelect) els.sourceLangSelect.value = savedSourceLang;
+    
     const savedTargetLang = localStorage.getItem(STORAGE_KEYS.targetLang);
     if (savedTargetLang && els.targetLangSelect) els.targetLangSelect.value = savedTargetLang;
+    
+    const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.querySelector('.theme-toggle').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
   } catch (e) {
     console.warn('loadSettings error', e);
   }
@@ -580,9 +597,19 @@ function saveSettings() {
   }
 }
 
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+  const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem(STORAGE_KEYS.theme, newTheme);
+  document.querySelector('.theme-toggle').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+}
+
+// ===== 언어 감지 및 관리 =====
 function detectLanguage(text) {
   const koreanRegex = /[가-힣]/;
   const vietnameseRegex = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđĐ]/i;
+  
   let detectedLang = 'English';
   if (koreanRegex.test(text)) detectedLang = 'Korean';
   else if (vietnameseRegex.test(text)) detectedLang = 'Vietnamese';
@@ -590,9 +617,11 @@ function detectLanguage(text) {
   if (els.sourceLangSelect && els.autoDetectBadge) {
     if (els.sourceLangSelect.value !== detectedLang) {
       els.sourceLangSelect.value = detectedLang;
+      
       if (detectedLang === 'Korean') els.targetLangSelect.value = 'Vietnamese';
       else if (detectedLang === 'Vietnamese') els.targetLangSelect.value = 'Korean';
       else els.targetLangSelect.value = 'Korean';
+      
       els.autoDetectBadge.classList.add('active');
       setTimeout(() => els.autoDetectBadge.classList.remove('active'), 1600);
     }
@@ -600,23 +629,44 @@ function detectLanguage(text) {
   return detectedLang;
 }
 
+function swapLanguages() {
+  if (!els.sourceLangSelect || !els.targetLangSelect) return;
+  const s = els.sourceLangSelect.value;
+  const t = els.targetLangSelect.value;
+  els.sourceLangSelect.value = t;
+  els.targetLangSelect.value = s;
+  saveSettings();
+  clearAll();
+}
+
+// ===== 번역 기록 관리 =====
 function getHistory() {
   const history = localStorage.getItem(STORAGE_KEYS.history);
   return history ? JSON.parse(history) : [];
 }
+
 function saveToHistory(source, translation, sourceLang, targetLang) {
   try {
     const history = getHistory();
-    const newItem = { source, translation, sourceLang, targetLang, time: new Date().toLocaleString('ko-KR') };
+    const newItem = { 
+      source, 
+      translation, 
+      sourceLang, 
+      targetLang, 
+      time: new Date().toLocaleString('ko-KR') 
+    };
     history.unshift(newItem);
     if (history.length > 30) history.pop();
     localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
-  } catch (e) { console.warn('history save error', e); }
+  } catch (e) { 
+    console.warn('history save error', e); 
+  }
 }
 
 function showHistory() {
   const history = getHistory();
   if (!els.historyList) return;
+  
   if (history.length === 0) {
     els.historyList.innerHTML = '<p style="text-align:center; color:#666;">번역 기록이 없습니다</p>';
   } else {
@@ -628,29 +678,39 @@ function showHistory() {
       </div>
     `).join('');
   }
+  
   if (els.historyModal) els.historyModal.style.display = 'block';
 }
-function hideHistory() { if (els.historyModal) els.historyModal.style.display = 'none'; }
+
+function hideHistory() { 
+  if (els.historyModal) els.historyModal.style.display = 'none'; 
+}
+
 function loadFromHistory(index) {
-  const history = getHistory(); const item = history[index];
+  const history = getHistory();
+  const item = history[index];
   if (!item) return;
+  
   if (els.inputText) els.inputText.value = item.source;
   if (els.sourceLangSelect) els.sourceLangSelect.value = item.sourceLang;
   if (els.targetLangSelect) els.targetLangSelect.value = item.targetLang;
-  hideHistory(); handleTranslate();
-}
-function clearHistory() { if (confirm('모든 번역 기록을 삭제하시겠습니까?')) { localStorage.removeItem(STORAGE_KEYS.history); showHistory(); } }
-
-function escapeHtml(unsafe) {
-  if (!unsafe) return '';
-  return unsafe.replace(/[&<"']/g, function (m) {
-    return ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;' }[m]);
-  });
+  
+  hideHistory();
+  handleTranslate();
 }
 
+function clearHistory() { 
+  if (confirm('모든 번역 기록을 삭제하시겠습니까?')) { 
+    localStorage.removeItem(STORAGE_KEYS.history); 
+    showHistory(); 
+  } 
+}
+
+// ===== 번역 기능 =====
 async function handleTranslate() {
   const text = (els.inputText && els.inputText.value) ? els.inputText.value.trim() : '';
   if (!text) return;
+  
   if (els.translation) els.translation.textContent = '번역 중...';
   showStatus('번역 요청중...', 'info');
 
@@ -658,17 +718,31 @@ async function handleTranslate() {
     const resp = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'translate', inputText: text, targetLang: els.targetLangSelect ? els.targetLangSelect.value : 'Vietnamese' })
+      body: JSON.stringify({ 
+        action: 'translate', 
+        inputText: text, 
+        targetLang: els.targetLangSelect ? els.targetLangSelect.value : 'Vietnamese' 
+      })
     });
+    
     const data = await resp.json();
     if (data.error) throw new Error(data.error);
+    
     currentTranslation = data.translation || '';
-    const pronunciation = data.pronunciation || data.pronunciation_hangul || '';
+    const pronunciation = data.pronunciation_hangul || data.pronunciation || '';
+    
     if (els.translation) els.translation.textContent = currentTranslation || '번역 결과 없음';
     if (els.pronunciation) els.pronunciation.textContent = pronunciation || '';
     if (els.speakBtn) els.speakBtn.disabled = !currentTranslation;
     if (els.copyBtn) els.copyBtn.disabled = !currentTranslation;
-    saveToHistory(text, currentTranslation, els.sourceLangSelect ? els.sourceLangSelect.value : '', els.targetLangSelect ? els.targetLangSelect.value : '');
+    
+    saveToHistory(
+      text, 
+      currentTranslation, 
+      els.sourceLangSelect ? els.sourceLangSelect.value : '', 
+      els.targetLangSelect ? els.targetLangSelect.value : ''
+    );
+    
     showStatus('번역 완료', 'success');
   } catch (err) {
     console.error('translate error', err);
@@ -677,119 +751,248 @@ async function handleTranslate() {
   }
 }
 
-
-function speakWithBrowserTTS(text, lang = 'vi-VN', rate = 1.20, volume = 0.9) {
+// ===== 🎯 개선된 베트남어 TTS (자연스러운 음성) =====
+function speakWithBrowserTTS(text, lang = 'vi-VN', rate = 0.80, volume = 0.9) {
   try {
     if (!('speechSynthesis' in window)) return false;
 
-    // Choose best Vietnamese voice if available
+    // ⭐ 베트남어 전용 최적 음성 선택 (구글 우선, 품질순 정렬)
     function chooseBestVietnameseVoice() {
       const voices = speechSynthesis.getVoices();
       if (!voices || voices.length === 0) return null;
-      let v = voices.find(x => x.name && (x.name.includes('Google') || x.name.includes('WaveNet')) && x.lang && x.lang.startsWith('vi'));
-      if (!v) v = voices.find(x => x.lang && x.lang.startsWith('vi'));
-      if (!v) v = voices.find(x => x.lang && x.lang.startsWith('en'));
-      return v || voices[0];
+      
+      console.log('🎤 사용 가능한 음성들:', voices.filter(v => v.lang && v.lang.startsWith('vi')).map(v => `${v.name} (${v.lang})`));
+      
+      // 우선순위 1: Google 베트남어 음성 (최고 품질)
+      let v = voices.find(x => x.name && x.name.includes('Google') && x.lang && x.lang.startsWith('vi') && x.name.includes('Standard'));
+      if (v) { console.log('✅ Google Standard 베트남어 음성 선택:', v.name); return v; }
+      
+      // 우선순위 2: Google WaveNet 베트남어 음성
+      v = voices.find(x => x.name && (x.name.includes('Google') || x.name.includes('WaveNet')) && x.lang && x.lang.startsWith('vi'));
+      if (v) { console.log('✅ Google 베트남어 음성 선택:', v.name); return v; }
+      
+      // 우선순위 3: 모든 베트남어 음성 중 가장 좋은 것
+      const viVoices = voices.filter(x => x.lang && x.lang.startsWith('vi'));
+      if (viVoices.length > 0) {
+        // 여성 음성 우선 (베트남어는 여성 음성이 더 자연스러움)
+        v = viVoices.find(x => x.name && (x.name.includes('Female') || x.name.includes('female') || x.name.includes('Woman')));
+        if (!v) v = viVoices[0]; // 첫 번째 베트남어 음성
+        console.log('✅ 베트남어 음성 선택:', v.name);
+        return v;
+      }
+      
+      console.log('⚠️ 베트남어 음성 없음, 기본 음성 사용');
+      return voices[0] || null;
     }
 
-    // Split text into chunks for natural pauses
-    function splitForTTS(text, maxLen = 90) {
+    // ⭐ 베트남어 문장 구조에 맞는 스마트 분할
+    function splitVietnameseText(text, maxLen = 60) {
       if (!text) return [];
-      const cand = text.split(/(?<=[\.\?\!]|…|\n)/g).map(s=>s.trim()).filter(Boolean);
-      const out = [];
-      for (let part of cand) {
-        if (part.length <= maxLen) out.push(part);
-        else {
-          while (part.length > maxLen) {
-            let cut = part.lastIndexOf(' ', maxLen);
-            if (cut <= 0) cut = maxLen;
-            out.push(part.slice(0, cut).trim());
-            part = part.slice(cut).trim();
+      
+      // 베트남어 특수 처리: 성조 보존하면서 자연스러운 분할
+      const sentences = text
+        .replace(/([.!?。])\s*/g, '$1|') // 문장 끝 마킹
+        .replace(/([,，])\s*/g, '$1|') // 쉼표 후 분할
+        .split('|')
+        .map(s => s.trim())
+        .filter(Boolean);
+      
+      const chunks = [];
+      for (let sentence of sentences) {
+        if (sentence.length <= maxLen) {
+          chunks.push(sentence);
+        } else {
+          // 긴 문장을 자연스럽게 분할
+          const words = sentence.split(/\s+/);
+          let chunk = '';
+          
+          for (let word of words) {
+            if ((chunk + ' ' + word).length <= maxLen) {
+              chunk = chunk ? chunk + ' ' + word : word;
+            } else {
+              if (chunk) chunks.push(chunk);
+              chunk = word;
+            }
           }
-          if (part) out.push(part);
+          if (chunk) chunks.push(chunk);
         }
       }
-      return out;
+      
+      console.log('📝 베트남어 텍스트 분할:', chunks);
+      return chunks;
+    }
+
+    // ⭐ 베트남어 발음 개선 전처리
+    function preprocessVietnameseText(text) {
+      return text
+        .replace(/\b(xin chào|chào)\b/gi, 'xin chào') // 인사말 표준화
+        .replace(/\b(cảm ơn|cám ơn)\b/gi, 'cảm ơn') // 감사 표준화
+        .replace(/\b(tạm biệt|chào tạm biệt)\b/gi, 'tạm biệt') // 작별 표준화
+        .replace(/([.!?])\s*$/, '$1') // 끝 공백 제거
+        .trim();
     }
 
     const voice = chooseBestVietnameseVoice();
-    const chunks = splitForTTS(text, 120);
+    const processedText = preprocessVietnameseText(text);
+    const chunks = splitVietnameseText(processedText, 50); // 더 짧게 분할
+    
     if (!chunks.length) return false;
 
-    speechSynthesis.cancel();
+    speechSynthesis.cancel(); // 기존 음성 중지
 
-    let idx = 0;
-    function playNext() {
-      if (idx >= chunks.length) return;
-      const u = new SpeechSynthesisUtterance(chunks[idx]);
-      u.lang = lang;
-      u.rate = rate;
-      u.pitch = 1.0;
-      u.volume = volume;
-      if (voice) u.voice = voice;
-      u.onend = () => {
-        idx++;
-        const pause = Math.min(300, 60 + Math.min(240, chunks[idx-1].length * 4));
-        setTimeout(playNext, pause);
+    let chunkIndex = 0;
+    let isPlaying = true;
+    
+    // ⭐ 재생 중지 제어
+    window.currentVietnameseTTS = {
+      stop: () => {
+        isPlaying = false;
+        speechSynthesis.cancel();
+        console.log('🛑 베트남어 TTS 중지됨');
+      }
+    };
+
+    function playNextChunk() {
+      if (!isPlaying || chunkIndex >= chunks.length) {
+        console.log('🏁 베트남어 TTS 완료');
+        if (els.speakBtn) {
+          els.speakBtn.textContent = '🔊 듣기';
+          els.speakBtn.disabled = false;
+        }
+        window.currentVietnameseTTS = null;
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(chunks[chunkIndex]);
+      
+      // ⭐ 베트남어 최적 설정 (성조 언어 특성 반영)
+      utterance.lang = 'vi-VN';
+      utterance.rate = 0.80;  // 더 느리게 (성조 명확히)
+      utterance.pitch = 1.1;  // 약간 높은 음조 (베트남어 특성)
+      utterance.volume = Math.min(1.0, volume);
+      
+      if (voice) {
+        utterance.voice = voice;
+        console.log(`🎵 재생 중 [${chunkIndex + 1}/${chunks.length}]: "${chunks[chunkIndex]}" (${voice.name})`);
+      }
+
+      utterance.onstart = () => {
+        if (els.speakBtn) {
+          els.speakBtn.textContent = `⏸️ (${chunkIndex + 1}/${chunks.length})`;
+          els.speakBtn.disabled = false;
+        }
       };
-      u.onerror = () => {
-        idx++;
-        setTimeout(playNext, 180);
+
+      utterance.onend = () => {
+        chunkIndex++;
+        // ⭐ 자연스러운 간격 (베트남어 리듬 고려)
+        const pause = chunkIndex < chunks.length ? 
+          Math.min(600, 200 + chunks[chunkIndex - 1].length * 8) : 0;
+        
+        setTimeout(() => {
+          if (isPlaying) playNextChunk();
+        }, pause);
       };
-      speechSynthesis.speak(u);
+
+      utterance.onerror = (e) => {
+        console.error('❌ 베트남어 TTS 에러:', e);
+        chunkIndex++;
+        setTimeout(() => {
+          if (isPlaying) playNextChunk();
+        }, 300);
+      };
+
+      speechSynthesis.speak(utterance);
     }
 
-    // ensure voices are loaded
-    if ((speechSynthesis.getVoices && speechSynthesis.getVoices().length === 0)) {
+    // ⭐ 음성 로딩 대기 후 시작
+    if (speechSynthesis.getVoices().length === 0) {
       speechSynthesis.onvoiceschanged = () => {
         speechSynthesis.onvoiceschanged = null;
-        playNext();
+        console.log('🔄 음성 로딩 완료, 재생 시작');
+        playNextChunk();
       };
     } else {
-      playNext();
+      console.log('🚀 베트남어 TTS 즉시 시작');
+      playNextChunk();
     }
+    
     return true;
   } catch (e) {
-    console.warn('browser tts error', e);
+    console.warn('❌ 베트남어 TTS 오류:', e);
     return false;
   }
 }
 
-
+// ===== 🎯 통합 음성 재생 시스템 =====
 async function handleSpeak() {
   if (!currentTranslation) return;
-  // toggle stop
+  
+  // 재생 중지 처리
   if (currentAudio && !currentAudio.paused) {
-    currentAudio.pause(); currentAudio.currentTime = 0; if (els.speakBtn) els.speakBtn.textContent = '🔊 듣기';
-    currentAudio = null; return;
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
   }
-  if (els.speakBtn) { els.speakBtn.textContent = '⏳'; els.speakBtn.disabled = true; }
+  
+  // 베트남어 TTS 중지
+  if (window.currentVietnameseTTS) {
+    window.currentVietnameseTTS.stop();
+    window.currentVietnameseTTS = null;
+  }
+  speechSynthesis.cancel();
+  
+  // 중지 버튼이었다면 종료
+  if (els.speakBtn && els.speakBtn.textContent.includes('⏸️')) {
+    els.speakBtn.textContent = '🔊 듣기';
+    return;
+  }
+  
+  if (els.speakBtn) {
+    els.speakBtn.textContent = '⏳';
+    els.speakBtn.disabled = true;
+  }
+
   try {
     const targetLang = els.targetLangSelect ? els.targetLangSelect.value : 'Vietnamese';
     const volume = parseFloat((els.volumeControl && els.volumeControl.value) ? els.volumeControl.value : 0.8);
 
+    // ⭐ 베트남어는 개선된 브라우저 TTS 사용
     if (targetLang === 'Vietnamese' && ('speechSynthesis' in window)) {
-      const ok = speakWithBrowserTTS(currentTranslation, 'vi-VN', 0.95, Math.min(1, volume));
-      if (ok) {
-        if (els.speakBtn) { els.speakBtn.textContent = '⏸️'; els.speakBtn.disabled = false; }
-        showStatus('브라우저 TTS로 재생 중', 'success');
+      console.log('🇻🇳 개선된 베트남어 TTS 사용');
+      const success = speakWithBrowserTTS(currentTranslation, 'vi-VN', 0.80, volume);
+      
+      if (success) {
+        showStatus('자연스러운 베트남어 음성 재생', 'success');
         return;
+      } else {
+        console.log('⚠️ 브라우저 TTS 실패, 서버 TTS로 폴백');
       }
     }
 
-    // 서버 TTS fallback
+    // 다른 언어 또는 폴백: 기존 서버 TTS 사용
     const cacheKey = `${currentTranslation}_${els.voiceSelect ? els.voiceSelect.value : ''}_${targetLang}`;
     let audioBlob = null;
-    if (audioCache.has(cacheKey)) audioBlob = audioCache.get(cacheKey);
+    
+    if (audioCache.has(cacheKey)) {
+      audioBlob = audioCache.get(cacheKey);
+    }
 
     if (!audioBlob) {
       const resp = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'speak', inputText: currentTranslation, voice: els.voiceSelect ? els.voiceSelect.value : 'alloy', language: targetLang })
+        body: JSON.stringify({
+          action: 'speak',
+          inputText: currentTranslation,
+          voice: els.voiceSelect ? els.voiceSelect.value : 'alloy',
+          language: targetLang
+        })
       });
+      
       if (!resp.ok) throw new Error('TTS 서버 오류');
       audioBlob = await resp.blob();
+      
       if (targetLang !== 'Vietnamese') {
         audioCache.set(cacheKey, audioBlob);
         if (audioCache.size > 20) {
@@ -800,7 +1003,11 @@ async function handleSpeak() {
     }
 
     const audioUrl = URL.createObjectURL(audioBlob);
-    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+    
     currentAudio = new Audio(audioUrl);
     let finalVolume = volume;
     if (targetLang === 'Vietnamese') finalVolume = Math.min(1.0, volume * 2.5);
@@ -808,42 +1015,155 @@ async function handleSpeak() {
     currentAudio.preload = 'auto';
 
     currentAudio.addEventListener('playing', () => {
-      if (els.speakBtn) { els.speakBtn.textContent = '⏸️'; els.speakBtn.disabled = false; }
+      if (els.speakBtn) {
+        els.speakBtn.textContent = '⏸️';
+        els.speakBtn.disabled = false;
+      }
       showStatus('재생 중', 'success');
     });
+    
     currentAudio.addEventListener('ended', () => {
-      if (els.speakBtn) { els.speakBtn.textContent = '🔊 듣기'; els.speakBtn.disabled = false; }
-      URL.revokeObjectURL(audioUrl); currentAudio = null;
+      if (els.speakBtn) {
+        els.speakBtn.textContent = '🔊 듣기';
+        els.speakBtn.disabled = false;
+      }
+      URL.revokeObjectURL(audioUrl);
+      currentAudio = null;
     });
+    
     currentAudio.addEventListener('error', (e) => {
-      console.error('audio play error', e);
-      if (els.speakBtn) { els.speakBtn.textContent = '🔊 듣기'; els.speakBtn.disabled = false; }
+      console.error('오디오 재생 오류:', e);
+      if (els.speakBtn) {
+        els.speakBtn.textContent = '🔊 듣기';
+        els.speakBtn.disabled = false;
+      }
       showStatus('음성 재생 실패', 'error');
       currentAudio = null;
     });
+    
     setTimeout(async () => {
-      try { await currentAudio.play(); } catch (e) { console.error(e); showStatus('재생 실패', 'error'); if (els.speakBtn) { els.speakBtn.textContent = '🔊 듣기'; els.speakBtn.disabled = false; } }
+      try {
+        await currentAudio.play();
+      } catch (e) {
+        console.error(e);
+        showStatus('재생 실패', 'error');
+        if (els.speakBtn) {
+          els.speakBtn.textContent = '🔊 듣기';
+          els.speakBtn.disabled = false;
+        }
+      }
     }, 120);
+
   } catch (e) {
-    console.error('handleSpeak error', e);
-    if (els.speakBtn) { els.speakBtn.textContent = '🔊 듣기'; els.speakBtn.disabled = false; }
+    console.error('handleSpeak 오류:', e);
+    if (els.speakBtn) {
+      els.speakBtn.textContent = '🔊 듣기';
+      els.speakBtn.disabled = false;
+    }
     showStatus('음성 재생 오류', 'error');
   }
 }
 
+// ===== 복사 기능 =====
 function copyTranslation() {
   if (!currentTranslation) return;
   navigator.clipboard.writeText(currentTranslation).then(() => {
-    if (els.copyBtn) { const original = els.copyBtn.textContent; els.copyBtn.textContent = '✅ 복사됨'; setTimeout(() => els.copyBtn.textContent = original, 1500); }
-  }).catch((e) => { showStatus('복사 실패', 'error'); });
+    if (els.copyBtn) { 
+      const original = els.copyBtn.textContent; 
+      els.copyBtn.textContent = '✅ 복사됨'; 
+      setTimeout(() => els.copyBtn.textContent = original, 1500); 
+    }
+  }).catch((e) => { 
+    showStatus('복사 실패', 'error'); 
+  });
 }
 
+// ===== 음성 인식 =====
+function setupSpeechRecognition() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    if (els.voiceBtn) els.voiceBtn.disabled = true;
+    return;
+  }
+  
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  
+  recognition.onstart = () => { 
+    isRecording = true; 
+    if (els.voiceBtn) els.voiceBtn.classList.add('recording'); 
+    if (els.voiceText) els.voiceText.textContent = '듣는 중...'; 
+    showStatus('말씀해 주세요', 'info'); 
+  };
+  
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    if (els.inputText) els.inputText.value = transcript;
+    detectLanguage(transcript);
+    recognition.stop();
+    isRecording = false;
+    if (els.voiceBtn) { 
+      els.voiceBtn.classList.remove('recording'); 
+      if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
+    }
+    handleTranslate();
+  };
+  
+  recognition.onerror = (e) => { 
+    console.warn('음성 인식 오류:', e); 
+    showStatus('음성 인식 오류', 'error'); 
+    recognition.stop(); 
+    isRecording = false; 
+    if (els.voiceBtn) { 
+      els.voiceBtn.classList.remove('recording'); 
+      if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
+    } 
+  };
+  
+  recognition.onend = () => { 
+    isRecording = false; 
+    if (els.voiceBtn) { 
+      els.voiceBtn.classList.remove('recording'); 
+      if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
+    } 
+  };
+}
+
+function handleVoiceTranslate() {
+  if (!recognition) { 
+    showStatus('음성 인식 불가', 'error'); 
+    return; 
+  }
+  
+  if (isRecording) {
+    recognition.stop();
+  } else {
+    try {
+      recognition.lang = langCodeMap[els.sourceLangSelect ? els.sourceLangSelect.value : 'Korean'];
+      recognition.start();
+    } catch (e) { 
+      console.warn('음성 인식 시작 실패:', e); 
+      showStatus('음성 인식 시작 실패', 'error'); 
+    }
+  }
+}
+
+// ===== UI 제어 =====
 function clearResult() {
   if (els.translation) els.translation.textContent = '번역 결과가 여기에 표시됩니다';
-  if (els.pronunciation) els.pronunciation.textContent = ' ';
+  if (els.pronunciation) els.pronunciation.textContent = '발음 표기가 여기에 표시됩니다';
   if (els.speakBtn) els.speakBtn.disabled = true;
   if (els.copyBtn) els.copyBtn.disabled = true;
-  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  if (currentAudio) { 
+    currentAudio.pause(); 
+    currentAudio = null; 
+  }
+  if (window.currentVietnameseTTS) {
+    window.currentVietnameseTTS.stop();
+    window.currentVietnameseTTS = null;
+  }
+  speechSynthesis.cancel();
 }
 
 function clearAll() {
@@ -855,76 +1175,60 @@ function togglePronunciation() {
   const pronDiv = els.pronunciation;
   const toggle = document.getElementById('pronToggle');
   if (!pronDiv) return;
-  if (pronDiv.style.display === 'none') { pronDiv.style.display = 'block'; if (toggle) toggle.textContent = '▼'; }
-  else { pronDiv.style.display = 'none'; if (toggle) toggle.textContent = '▶'; }
-}
-
-function swapLanguages() {
-  if (!els.sourceLangSelect || !els.targetLangSelect) return;
-  const s = els.sourceLangSelect.value; const t = els.targetLangSelect.value;
-  els.sourceLangSelect.value = t; els.targetLangSelect.value = s;
-  saveSettings();
-  clearAll();
-}
-
-/* Speech recognition setup (기본 제공) */
-function setupSpeechRecognition() {
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    if (els.voiceBtn) els.voiceBtn.disabled = true;
-    return;
-  }
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  recognition.onstart = () => { isRecording = true; if (els.voiceBtn) els.voiceBtn.classList.add('recording'); if (els.voiceText) els.voiceText.textContent = '듣는 중...'; showStatus('말씀해 주세요', 'info'); };
-  recognition.onresult = (event) => {
-    const t = event.results[0][0].transcript;
-    if (els.inputText) els.inputText.value = t;
-    detectLanguage(t);
-    recognition.stop();
-    isRecording = false;
-    if (els.voiceBtn) { els.voiceBtn.classList.remove('recording'); if (els.voiceText) els.voiceText.textContent = '음성 번역'; }
-    handleTranslate();
-  };
-  recognition.onerror = (e) => { console.warn('sr error', e); showStatus('음성 인식 오류', 'error'); recognition.stop(); isRecording = false; if (els.voiceBtn) { els.voiceBtn.classList.remove('recording'); if (els.voiceText) els.voiceText.textContent = '음성 번역'; } };
-  recognition.onend = () => { isRecording = false; if (els.voiceBtn) { els.voiceBtn.classList.remove('recording'); if (els.voiceText) els.voiceText.textContent = '음성 번역'; } };
-}
-
-function handleVoiceTranslate() {
-  if (!recognition) { showStatus('음성 인식 불가', 'error'); return; }
-  if (isRecording) recognition.stop();
-  else {
-    try {
-      recognition.lang = langCodeMap[els.sourceLangSelect ? els.sourceLangSelect.value : 'Korean'];
-      recognition.start();
-    } catch (e) { console.warn('start SR error', e); showStatus('음성 인식 시작 실패', 'error'); }
+  
+  if (pronDiv.style.display === 'none') { 
+    pronDiv.style.display = 'block'; 
+    if (toggle) toggle.textContent = '▼'; 
+  } else { 
+    pronDiv.style.display = 'none'; 
+    if (toggle) toggle.textContent = '▶'; 
   }
 }
 
-/* event bindings */
+// ===== 이벤트 리스너 설정 =====
 document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   setupSpeechRecognition();
-  showStatus('준비 완료', 'success');
+  showStatus('준비 완료 - 베트남어 고품질 음성 지원', 'success');
 
+  // 볼륨 컨트롤
   if (els.volumeControl) {
     els.volumeControl.addEventListener('input', (e) => {
-      const v = e.target.value; if (els.volumeValue) els.volumeValue.textContent = Math.round(v * 100) + '%'; localStorage.setItem(STORAGE_KEYS.volume, v);
+      const volume = e.target.value; 
+      if (els.volumeValue) els.volumeValue.textContent = Math.round(volume * 100) + '%'; 
+      localStorage.setItem(STORAGE_KEYS.volume, volume);
+      
+      if (currentAudio) {
+        currentAudio.volume = volume;
+      }
     });
   }
+
+  // 설정 변경 감지
   if (els.voiceSelect) els.voiceSelect.addEventListener('change', (e) => localStorage.setItem(STORAGE_KEYS.voice, e.target.value));
   if (els.sourceLangSelect) els.sourceLangSelect.addEventListener('change', saveSettings);
   if (els.targetLangSelect) els.targetLangSelect.addEventListener('change', saveSettings);
+
+  // 텍스트 입력 감지
   if (els.inputText) {
-    els.inputText.addEventListener('input', (e) => { if (e.target.value.length > 2) detectLanguage(e.target.value); });
-    els.inputText.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTranslate(); }});
+    els.inputText.addEventListener('input', (e) => { 
+      if (e.target.value.length > 2) detectLanguage(e.target.value); 
+    });
+    els.inputText.addEventListener('keypress', (e) => { 
+      if (e.key === 'Enter' && !e.shiftKey) { 
+        e.preventDefault(); 
+        handleTranslate(); 
+      }
+    });
   }
 
-  window.onclick = (event) => { if (event.target === els.historyModal) hideHistory(); };
+  // 모달 클릭 외부 닫기
+  window.onclick = (event) => { 
+    if (event.target === els.historyModal) hideHistory(); 
+  };
 });
 
-/* expose some functions to inline HTML onclick handlers if there are */
+// ===== 전역 함수 노출 =====
 window.handleTranslate = handleTranslate;
 window.handleSpeak = handleSpeak;
 window.handleVoiceTranslate = handleVoiceTranslate;
@@ -936,6 +1240,7 @@ window.loadFromHistory = loadFromHistory;
 window.clearHistory = clearHistory;
 window.togglePronunciation = togglePronunciation;
 window.swapLanguages = swapLanguages;
+window.toggleTheme = toggleTheme;
 
 </script>
 
