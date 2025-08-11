@@ -678,7 +678,7 @@ async function handleTranslate() {
 }
 
 
-function speakWithBrowserTTS(text, lang = 'vi-VN', rate = 0.95, volume = 0.9) {
+function speakWithBrowserTTS(text, lang = 'vi-VN', rate = 1.10, volume = 0.9) {
   try {
     if (!('speechSynthesis' in window)) return false;
 
@@ -713,7 +713,7 @@ function speakWithBrowserTTS(text, lang = 'vi-VN', rate = 0.95, volume = 0.9) {
     }
 
     const voice = chooseBestVietnameseVoice();
-    const chunks = splitForTTS(text, 90);
+    const chunks = splitForTTS(text, 120);
     if (!chunks.length) return false;
 
     speechSynthesis.cancel();
@@ -729,7 +729,7 @@ function speakWithBrowserTTS(text, lang = 'vi-VN', rate = 0.95, volume = 0.9) {
       if (voice) u.voice = voice;
       u.onend = () => {
         idx++;
-        const pause = Math.min(400, 100 + Math.min(300, chunks[idx-1].length * 6));
+        const pause = Math.min(300, 60 + Math.min(240, chunks[idx-1].length * 4));
         setTimeout(playNext, pause);
       };
       u.onerror = () => {
