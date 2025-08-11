@@ -821,100 +821,162 @@
                 showStatus(`❌ ${error.message}`, 'error');
             }
         }
+       
+        // index.html의 handleSpeak 함수 완전 교체
 
-        async function handleSpeak() {
-            if (!currentTranslation) return;
-            
-            const cacheKey = `${currentTranslation}_${els.voiceSelect.value}_${els.targetLangSelect.value}`;
-            
-            if (currentAudio && !currentAudio.paused) {
-                currentAudio.pause();
-                currentAudio.currentTime = 0;
-                els.speakBtn.textContent = '🔊 듣기';
-                currentAudio = null;
-                return;
-            }
-            
-            els.speakBtn.textContent = '⏳';
-            els.speakBtn.disabled = true;
+async function handleSpeak() {
+    if (!currentTranslation) return;
+    
+    const cacheKey = `${currentTranslation}_${els.voiceSelect.value}_${els.targetLangSelect.value}`;
+    
+    if (currentAudio && !currentAudio.paused) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        els.speakBtn.textContent = '🔊 듣기';
+        currentAudio = null;
+        return;
+    }
+    
+    els.speakBtn.textContent = '⏳';
+    els.speakBtn.disabled = true;
 
-            try {
-                let audioBlob;
-                
-                // 베트남어는 캐시 사용
-                if (els.targetLangSelect.value === 'Vietnamese' && audioCache.has(cacheKey)) {
-                    console.log('캐시된 오디오 사용');
-                    audioBlob = audioCache.get(cacheKey);
-                } else {
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'speak',
-                            inputText: currentTranslation,
-                            voice: els.voiceSelect.value,
-                            language: els.targetLangSelect.value
-                        })
-                    });
-                    
-                    if (!response.ok) throw new Error(`서버 오류 ${response.status}`);
-                    
-                    audioBlob = await response.blob();
-                    
-                    // 베트남어만 캐시 저장
-                    if (els.targetLangSelect.value === 'Vietnamese') {
-                        audioCache.set(cacheKey, audioBlob);
-                        if (audioCache.size > 10) {
-                            const firstKey = audioCache.keys().next().value;
-                            audioCache.delete(firstKey);
-                        }
-                    }
+    try {
+        let audioBlob;
+        
+        // ⭐ 베트남어는 항상 새로 요청 (캐시 문제 해결)
+        if (els.targetLangSelect.value === 'Vietnamese') {
+            console.log('🇻🇳 베트남어: 캐시 사용 안함 (볼륨 문제 해결)');
+            audioBlob = null; // 강제로 새 요청
+        } else if (audioCache.has(cacheKey)) {
+            console.log('📦 캐시된 오디오 사용');
+            audioBlob = audioCache.get(cacheKey);
+        }
+        
+        if (!audioBlob) {
+            console.log('🌐 서버에서 새 오디오 요청');
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'speak',
+                    inputText: currentTranslation,
+                    voice: els.voiceSelect.value,
+                    language: els.targetLangSelect.value
+                })
+            });
+            
+            if (!response.ok) throw new Error(`서버 오류 ${response.status}`);
+            
+            audioBlob = await response.blob();
+            
+            // 베트남어가 아닌 경우만 캐시 저장
+            if (els.targetLangSelect.value !== 'Vietnamese') {
+                audioCache.set(cacheKey, audioBlob);
+                if (audioCache.size > 10) {
+                    const firstKey = audioCache.keys().next().value;
+                    audioCache.delete(firstKey);
                 }
-                
-                const audioUrl = URL.createObjectURL(audioBlob);
-                
-                // handleSpeak 함수의 오디오 생성 부분
-                currentAudio = new Audio(audioUrl);
-
-// ⭐ 베트남어 강력 볼륨 부스터 (2.5배 증폭)
-let finalVolume = parseFloat(els.volumeControl.value);
-if (els.targetLangSelect.value === 'Vietnamese') {
-    finalVolume = Math.min(1.0, finalVolume * 2.5); // 베트남어는 2.5배 증폭
-    console.log(`🔊 베트남어 볼륨 부스터: ${els.volumeControl.value} → ${finalVolume} (2.5배 증폭)`);
-} else {
-    console.log(`🔊 일반 볼륨: ${finalVolume}`);
-}
-currentAudio.volume = finalVolume;
-
-currentAudio.preload = 'auto';
-                
-                currentAudio.onplaying = () => {
-                    els.speakBtn.textContent = '⏸️';
-                    els.speakBtn.disabled = false;
-                };
-                
-                currentAudio.onended = () => {
-                    els.speakBtn.textContent = '🔊 듣기';
-                    els.speakBtn.disabled = false;
-                    URL.revokeObjectURL(audioUrl);
-                    currentAudio = null;
-                };
-                
-                currentAudio.onerror = () => {
-                    els.speakBtn.textContent = '🔊 듣기';
-                    els.speakBtn.disabled = false;
-                    showStatus('음성 재생 실패', 'error');
-                    currentAudio = null;
-                };
-                
-                await currentAudio.play();
-                
-            } catch (error) {
-                els.speakBtn.textContent = '🔊 듣기';
-                els.speakBtn.disabled = false;
-                showStatus(`음성 재생 실패: ${error.message}`, 'error');
             }
         }
+        
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        // ⭐ 새로운 오디오 객체 생성
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio = null;
+        }
+        
+        currentAudio = new Audio();
+        
+        // ⭐ 베트남어 강력 볼륨 증폭 계산
+        let baseVolume = parseFloat(els.volumeControl.value);
+        let finalVolume = baseVolume;
+        
+        if (els.targetLangSelect.value === 'Vietnamese') {
+            finalVolume = Math.min(1.0, baseVolume * 4.0); // 베트남어는 4배 증폭
+            console.log(`🔊 베트남어 볼륨 부스터: ${baseVolume} → ${finalVolume} (4배 증폭)`);
+        } else {
+            console.log(`🔊 일반 볼륨: ${finalVolume}`);
+        }
+        
+        // ⭐ 핵심: 오디오 로드 전 볼륨 미리 설정
+        currentAudio.volume = finalVolume;
+        currentAudio.preload = 'auto';
+        
+        // ⭐ 로드 이벤트에서 볼륨 재확인
+        currentAudio.addEventListener('loadeddata', function() {
+            this.volume = finalVolume;
+            console.log(`📱 loadeddata: 볼륨 재설정 ${this.volume}`);
+        });
+        
+        currentAudio.addEventListener('canplay', function() {
+            this.volume = finalVolume;
+            console.log(`📱 canplay: 볼륨 재설정 ${this.volume}`);
+        });
+        
+        currentAudio.addEventListener('loadedmetadata', function() {
+            this.volume = finalVolume;
+            console.log(`📱 loadedmetadata: 볼륨 재설정 ${this.volume}`);
+        });
+        
+        // ⭐ 재생 시작 이벤트
+        currentAudio.addEventListener('play', function() {
+            this.volume = finalVolume;
+            console.log(`🎵 play: 재생 시작, 최종 볼륨 ${this.volume}`);
+        });
+        
+        currentAudio.addEventListener('playing', function() {
+            this.volume = finalVolume;
+            els.speakBtn.textContent = '⏸️';
+            els.speakBtn.disabled = false;
+            console.log(`🎵 playing: 재생 중, 최종 볼륨 ${this.volume}`);
+        });
+        
+        currentAudio.addEventListener('ended', function() {
+            els.speakBtn.textContent = '🔊 듣기';
+            els.speakBtn.disabled = false;
+            URL.revokeObjectURL(audioUrl);
+            currentAudio = null;
+            console.log('🏁 재생 완료');
+        });
+        
+        currentAudio.addEventListener('error', function(e) {
+            console.error('❌ 오디오 에러:', e);
+            els.speakBtn.textContent = '🔊 듣기';
+            els.speakBtn.disabled = false;
+            showStatus('음성 재생 실패', 'error');
+            currentAudio = null;
+        });
+        
+        // ⭐ 소스 설정 및 재생
+        currentAudio.src = audioUrl;
+        
+        // ⭐ 로드 후 재생 (약간의 지연으로 안정성 확보)
+        setTimeout(async () => {
+            try {
+                // 재생 직전 볼륨 최종 확인
+                if (currentAudio) {
+                    currentAudio.volume = finalVolume;
+                    console.log(`🚀 재생 시작: 최종 볼륨 ${currentAudio.volume}`);
+                    await currentAudio.play();
+                }
+            } catch (error) {
+                console.error('❌ 재생 실패:', error);
+                els.speakBtn.textContent = '🔊 듣기';
+                els.speakBtn.disabled = false;
+                showStatus('음성 재생 실패', 'error');
+            }
+        }, 200); // 200ms 지연
+        
+    } catch (error) {
+        console.error('❌ handleSpeak 에러:', error);
+        els.speakBtn.textContent = '🔊 듣기';
+        els.speakBtn.disabled = false;
+        showStatus(`음성 재생 실패: ${error.message}`, 'error');
+    }
+}
+        
         
         function clearResult() {
             els.translation.textContent = '번역 결과가 여기에 표시됩니다';
