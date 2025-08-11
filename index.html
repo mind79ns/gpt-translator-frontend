@@ -873,9 +873,21 @@
                 
                 const audioUrl = URL.createObjectURL(audioBlob);
                 
-                currentAudio = new Audio(audioUrl);
-                currentAudio.volume = parseFloat(els.volumeControl.value);
-                currentAudio.preload = 'auto';
+                // handleSpeak 함수의 오디오 생성 부분
+currentAudio = new Audio(audioUrl);
+
+// ⭐ 볼륨 증폭 로직 - 베트남어는 2배 증폭
+let volumeMultiplier = 1.0;
+if (els.targetLangSelect.value === 'Vietnamese') {
+    volumeMultiplier = 2.0;  // 베트남어는 2배 증폭
+}
+
+const desiredVolume = parseFloat(els.volumeControl.value) * volumeMultiplier;
+currentAudio.volume = Math.min(1.0, desiredVolume);  // 최대 1.0
+
+console.log(`볼륨 설정: 기본=${els.volumeControl.value}, 증폭=${volumeMultiplier}x, 최종=${currentAudio.volume}`);
+
+currentAudio.preload = 'auto';
                 
                 currentAudio.onplaying = () => {
                     els.speakBtn.textContent = '⏸️';
