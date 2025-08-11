@@ -677,51 +677,45 @@ async function handleTranslate() {
   }
 }
 
-}
 
-function chooseBestVietnameseVoice() {
-  const voices = speechSynthesis.getVoices();
-  if (!voices || voices.length === 0) return null;
-  // 우선순위: 'Google' 포함 / 'WaveNet' 포함 / vi- 시작
-  let v = voices.find(x => x.name && (x.name.includes('Google') || x.name.includes('WaveNet')) && x.lang && x.lang.startsWith('vi'));
-  if (!v) v = voices.find(x => x.lang && x.lang.startsWith('vi'));
-  if (!v) v = voices.find(x => x.lang && x.lang.startsWith('en'));
-  return v || voices[0];
-}
-
-function splitForTTS(text, maxLen = 120) {
-  // 문장 단위로 분할 (.,?!) 기준 우선, 너무 길면 강제로 chunk
-  if (!text) return [];
-  const cand = text.split(/(?<=[\.\?\!]|…|\n)/g).map(s=>s.trim()).filter(Boolean);
-  const out = [];
-  for (let part of cand) {
-    if (part.length <= maxLen) out.push(part);
-    else {
-      while (part.length > maxLen) {
-        let cut = part.lastIndexOf(' ', maxLen);
-        if (cut <= 0) cut = maxLen;
-        out.push(part.slice(0, cut).trim());
-        part = part.slice(cut).trim();
-      }
-      if (part) out.push(part);
-    }
-  }
-  return out;
-}
-
-function speakChunksWithVoice(text, options = {}) {
+function speakWithBrowserTTS(text, lang = 'vi-VN', rate = 0.95, volume = 0.9) {
   try {
     if (!('speechSynthesis' in window)) return false;
-    const volume = options.volume ?? 0.9;
-    const rate = options.rate ?? 0.95;
-    const pitch = options.pitch ?? 1.0;
-    const lang = options.lang ?? 'vi-VN';
+
+    // Choose best Vietnamese voice if available
+    function chooseBestVietnameseVoice() {
+      const voices = speechSynthesis.getVoices();
+      if (!voices || voices.length === 0) return null;
+      let v = voices.find(x => x.name && (x.name.includes('Google') || x.name.includes('WaveNet')) && x.lang && x.lang.startsWith('vi'));
+      if (!v) v = voices.find(x => x.lang && x.lang.startsWith('vi'));
+      if (!v) v = voices.find(x => x.lang && x.lang.startsWith('en'));
+      return v || voices[0];
+    }
+
+    // Split text into chunks for natural pauses
+    function splitForTTS(text, maxLen = 90) {
+      if (!text) return [];
+      const cand = text.split(/(?<=[\.\?\!]|…|\n)/g).map(s=>s.trim()).filter(Boolean);
+      const out = [];
+      for (let part of cand) {
+        if (part.length <= maxLen) out.push(part);
+        else {
+          while (part.length > maxLen) {
+            let cut = part.lastIndexOf(' ', maxLen);
+            if (cut <= 0) cut = maxLen;
+            out.push(part.slice(0, cut).trim());
+            part = part.slice(cut).trim();
+          }
+          if (part) out.push(part);
+        }
+      }
+      return out;
+    }
 
     const voice = chooseBestVietnameseVoice();
     const chunks = splitForTTS(text, 90);
     if (!chunks.length) return false;
 
-    // cancel existing
     speechSynthesis.cancel();
 
     let idx = 0;
@@ -730,7 +724,7 @@ function speakChunksWithVoice(text, options = {}) {
       const u = new SpeechSynthesisUtterance(chunks[idx]);
       u.lang = lang;
       u.rate = rate;
-      u.pitch = pitch;
+      u.pitch = 1.0;
       u.volume = volume;
       if (voice) u.voice = voice;
       u.onend = () => {
@@ -739,15 +733,14 @@ function speakChunksWithVoice(text, options = {}) {
         setTimeout(playNext, pause);
       };
       u.onerror = () => {
-        // on error, try to continue with next chunk
         idx++;
         setTimeout(playNext, 180);
       };
       speechSynthesis.speak(u);
     }
-    // ensure voices are loaded, sometimes getVoices is empty initially
+
+    // ensure voices are loaded
     if ((speechSynthesis.getVoices && speechSynthesis.getVoices().length === 0)) {
-      // wait for voiceschanged
       speechSynthesis.onvoiceschanged = () => {
         speechSynthesis.onvoiceschanged = null;
         playNext();
@@ -757,11 +750,10 @@ function speakChunksWithVoice(text, options = {}) {
     }
     return true;
   } catch (e) {
-    console.warn('speakChunksWithVoice error', e);
+    console.warn('browser tts error', e);
     return false;
   }
 }
-
 
 
 async function handleSpeak() {
@@ -777,10 +769,10 @@ async function handleSpeak() {
     const volume = parseFloat((els.volumeControl && els.volumeControl.value) ? els.volumeControl.value : 0.8);
 
     if (targetLang === 'Vietnamese' && ('speechSynthesis' in window)) {
-      const ok = speakChunksWithVoice(currentTranslation, {rate:0.92, pitch:1.0, volume: Math.min(1, volume), lang: 'vi-VN'});
+      const ok = speakWithBrowserTTS(currentTranslation, 'vi-VN', 0.95, Math.min(1, volume));
       if (ok) {
         if (els.speakBtn) { els.speakBtn.textContent = '⏸️'; els.speakBtn.disabled = false; }
-        showStatus('브라우저 TTS로 자연스럽게 재생 중', 'success');
+        showStatus('브라우저 TTS로 재생 중', 'success');
         return;
       }
     }
@@ -912,21 +904,6 @@ function handleVoiceTranslate() {
 
 /* event bindings */
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('[DEBUG] integrated_tuned script loaded.');
-  window.addEventListener('error', function(err) {
-    console.error('[PAGE ERROR]', err);
-    if (els.status) els.status.textContent = '[JS ERROR] ' + (err && err.message ? err.message : JSON.stringify(err));
-  });
-  // Ensure primary buttons are enabled in case they were disabled
-  setTimeout(() => {
-    try {
-      if (els.voiceBtn) els.voiceBtn.disabled = false;
-      if (els.speakBtn) els.speakBtn.disabled = false;
-      if (els.copyBtn) els.copyBtn.disabled = false;
-      if (els.voiceBtn) els.voiceBtn.classList.remove('disabled');
-    } catch(e){ console.warn('enable buttons fail', e); }
-  }, 300);
-
   loadSettings();
   setupSpeechRecognition();
   showStatus('준비 완료', 'success');
