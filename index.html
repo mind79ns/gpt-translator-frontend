@@ -40,6 +40,7 @@
             min-height: 100vh; 
             padding: 10px;
             transition: background 0.3s;
+            -webkit-tap-highlight-color: transparent;
         }
         
         .container { 
@@ -72,6 +73,7 @@
             padding: 5px 10px;
             cursor: pointer;
             font-size: 16px;
+            touch-action: manipulation;
         }
         
         .language-selector { 
@@ -108,6 +110,7 @@
             cursor: pointer; 
             transition: transform 0.3s; 
             flex-shrink: 0; 
+            touch-action: manipulation;
         }
         
         .language-selector button:hover { transform: scale(1.1) rotate(180deg); }
@@ -147,6 +150,7 @@
             transition: all 0.3s;
             font-weight: bold;
             text-align: center;
+            touch-action: manipulation;
         }
         
         .mode-btn.active {
@@ -197,6 +201,14 @@
             box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         }
         
+        .speaker-card.active::after {
+            content: '🎤';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            animation: pulse 1.5s infinite;
+        }
+        
         .speaker-title {
             font-weight: bold;
             margin-bottom: 8px;
@@ -229,6 +241,7 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+            touch-action: manipulation;
         }
         
         .conv-btn-start {
@@ -252,6 +265,44 @@
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
+        }
+        
+        /* ⭐ 마이크 상태 표시 */
+        .mic-status {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 15px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .mic-status.active {
+            display: flex;
+        }
+        
+        .mic-status.permission-denied {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .mic-status.listening {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .mic-status.error {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        
+        .mic-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 1s infinite;
         }
         
         /* ⭐ 대화 히스토리 */
@@ -332,6 +383,7 @@
             border-radius: 4px;
             font-size: 10px;
             cursor: pointer;
+            touch-action: manipulation;
         }
         
         /* 기존 스타일들 */
@@ -371,6 +423,7 @@
             border-radius: 25px;
             cursor: pointer;
             transition: background 0.3s;
+            touch-action: manipulation;
         }
         
         .toggle-switch.active { background: var(--primary); }
@@ -409,6 +462,7 @@
             align-items: center; 
             justify-content: center; 
             gap: 5px; 
+            touch-action: manipulation;
         }
         
         button:hover { 
@@ -435,8 +489,8 @@
         .btn-history { background: #4ECDC4; }
         
         @keyframes pulse { 
-            0%, 100% { transform: scale(1); } 
-            50% { transform: scale(1.05); } 
+            0%, 100% { transform: scale(1); opacity: 1; } 
+            50% { transform: scale(1.05); opacity: 0.8; } 
         }
         
         .result-section { 
@@ -713,6 +767,14 @@
             .speaker-info { grid-template-columns: 1fr; gap: 10px; }
             .conversation-controls { flex-direction: column; }
         }
+        
+        /* iOS 특별 처리 */
+        @supports (-webkit-touch-callout: none) {
+            button, .toggle-switch, select {
+                -webkit-tap-highlight-color: transparent;
+                -webkit-user-select: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -749,6 +811,12 @@
             
             <!-- ⭐ 대화 모드 UI -->
             <div class="conversation-mode" id="conversationMode">
+                <!-- 마이크 상태 표시 -->
+                <div class="mic-status" id="micStatus">
+                    <span class="mic-indicator"></span>
+                    <span id="micStatusText">마이크 준비 중...</span>
+                </div>
+                
                 <div class="speaker-info">
                     <div class="speaker-card speaker-a" id="speakerCardA">
                         <div class="speaker-title">
@@ -888,11 +956,11 @@
     </div>
     
 <script>
-/* 🚀 GPT 양방향 음성 번역기 Pro - 대화 모드 통합 버전
-   ✅ 대화 모드: A-B 화자 자동 전환
-   ✅ 연속 음성 인식
-   ✅ 대화 히스토리 표시
-   ✅ 실시간 대화 번역
+/* 🚀 GPT 양방향 음성 번역기 Pro - 안정화 버전
+   ✅ 마이크 권한 관리 개선
+   ✅ 음성 인식 안정화
+   ✅ 모바일 최적화
+   ✅ 오류 자동 복구
 */
 
 const API_URL = 'https://knstranslator.netlify.app/.netlify/functions/translate';
@@ -936,7 +1004,9 @@ const els = {
   speakerLangB: document.getElementById('speakerLangB'),
   startConversationBtn: document.getElementById('startConversationBtn'),
   stopConversationBtn: document.getElementById('stopConversationBtn'),
-  conversationHistory: document.getElementById('conversationHistory')
+  conversationHistory: document.getElementById('conversationHistory'),
+  micStatus: document.getElementById('micStatus'),
+  micStatusText: document.getElementById('micStatusText')
 };
 
 let currentTranslation = '';
@@ -953,7 +1023,18 @@ let conversationState = {
   isActive: false,
   currentSpeaker: 'A', // 'A' 또는 'B'
   messages: [],
-  autoRecognition: false
+  autoRecognition: false,
+  retryCount: 0,
+  maxRetries: 3,
+  silenceTimeout: null,
+  recognitionTimeout: null
+};
+
+// ⭐ 마이크 권한 상태
+let micPermissionState = {
+  hasPermission: false,
+  isChecking: false,
+  lastCheckTime: 0
 };
 
 const STORAGE_KEYS = {
@@ -977,7 +1058,72 @@ const langCodeMap = {
   'English': 'en-US'
 };
 
-// ===== 대화 모드 함수들 =====
+// ===== 마이크 권한 관리 =====
+async function checkMicrophonePermission() {
+  if (micPermissionState.isChecking) return micPermissionState.hasPermission;
+  
+  const now = Date.now();
+  if (now - micPermissionState.lastCheckTime < 5000) {
+    return micPermissionState.hasPermission;
+  }
+  
+  micPermissionState.isChecking = true;
+  micPermissionState.lastCheckTime = now;
+  
+  try {
+    if (!navigator.permissions) {
+      // permissions API 미지원 브라우저
+      micPermissionState.hasPermission = true;
+      micPermissionState.isChecking = false;
+      return true;
+    }
+    
+    const result = await navigator.permissions.query({ name: 'microphone' });
+    micPermissionState.hasPermission = result.state === 'granted';
+    
+    result.addEventListener('change', () => {
+      micPermissionState.hasPermission = result.state === 'granted';
+      updateMicStatus(result.state);
+    });
+    
+    updateMicStatus(result.state);
+    return micPermissionState.hasPermission;
+    
+  } catch (error) {
+    console.log('권한 체크 실패, 직접 요청 필요:', error);
+    micPermissionState.hasPermission = true; // 일단 시도해보도록
+    return true;
+  } finally {
+    micPermissionState.isChecking = false;
+  }
+}
+
+function updateMicStatus(state) {
+  if (!els.micStatus || !els.micStatusText) return;
+  
+  els.micStatus.classList.remove('permission-denied', 'listening', 'error');
+  
+  switch(state) {
+    case 'granted':
+      els.micStatus.classList.add('listening');
+      els.micStatusText.textContent = '🎤 마이크 준비 완료';
+      els.micStatus.classList.add('active');
+      setTimeout(() => els.micStatus.classList.remove('active'), 2000);
+      break;
+    case 'denied':
+      els.micStatus.classList.add('permission-denied', 'active');
+      els.micStatusText.textContent = '⚠️ 마이크 권한이 거부되었습니다. 설정에서 허용해주세요.';
+      break;
+    case 'prompt':
+      els.micStatus.classList.add('active');
+      els.micStatusText.textContent = '🔔 마이크 권한을 요청합니다...';
+      break;
+    default:
+      els.micStatus.classList.remove('active');
+  }
+}
+
+// ===== 대화 모드 함수들 (개선) =====
 function switchToNormalMode() {
   if (conversationState.isActive) {
     stopConversation();
@@ -991,13 +1137,17 @@ function switchToNormalMode() {
   showStatus('일반 번역 모드', 'success');
 }
 
-function switchToConversationMode() {
+async function switchToConversationMode() {
   els.conversationModeBtn.classList.add('active');
   els.normalModeBtn.classList.remove('active');
   els.normalMode.classList.add('hidden');
   els.conversationMode.classList.add('active');
   
   updateSpeakerLanguages();
+  
+  // 대화 모드 진입 시 마이크 권한 체크
+  await checkMicrophonePermission();
+  
   showStatus('대화 모드 - 실시간 양방향 번역', 'success');
 }
 
@@ -1013,10 +1163,19 @@ function updateSpeakerLanguages() {
   }
 }
 
-function startConversation() {
+async function startConversation() {
+  // 마이크 권한 체크
+  const hasPermission = await checkMicrophonePermission();
+  if (!hasPermission) {
+    showStatus('마이크 권한이 필요합니다', 'error');
+    updateMicStatus('denied');
+    return;
+  }
+  
   conversationState.isActive = true;
   conversationState.currentSpeaker = 'A';
   conversationState.autoRecognition = true;
+  conversationState.retryCount = 0;
   
   els.startConversationBtn.disabled = true;
   els.stopConversationBtn.disabled = false;
@@ -1034,8 +1193,23 @@ function stopConversation() {
   conversationState.isActive = false;
   conversationState.autoRecognition = false;
   
+  // 타임아웃 정리
+  if (conversationState.silenceTimeout) {
+    clearTimeout(conversationState.silenceTimeout);
+    conversationState.silenceTimeout = null;
+  }
+  
+  if (conversationState.recognitionTimeout) {
+    clearTimeout(conversationState.recognitionTimeout);
+    conversationState.recognitionTimeout = null;
+  }
+  
   if (recognition && isRecording) {
-    recognition.stop();
+    try {
+      recognition.stop();
+    } catch (e) {
+      console.log('음성 인식 중지 시도:', e);
+    }
   }
   
   els.startConversationBtn.disabled = false;
@@ -1073,11 +1247,9 @@ function switchSpeaker() {
   
   // 언어 자동 전환
   if (conversationState.currentSpeaker === 'A') {
-    // A는 source 언어로 말함
     const speakerLang = els.sourceLangSelect.value;
     showStatus(`화자 A 차례 - ${speakerLang}로 말하세요`, 'info');
   } else {
-    // B는 target 언어로 말함  
     const speakerLang = els.targetLangSelect.value;
     showStatus(`화자 B 차례 - ${speakerLang}로 말하세요`, 'info');
   }
@@ -1086,20 +1258,57 @@ function switchSpeaker() {
 async function startAutoRecognition() {
   if (!conversationState.autoRecognition || !recognition) return;
   
+  // 재시도 제한
+  if (conversationState.retryCount >= conversationState.maxRetries) {
+    console.log('재시도 한계 도달, 대기 중...');
+    conversationState.retryCount = 0;
+    
+    // 긴 대기 후 다시 시도
+    conversationState.recognitionTimeout = setTimeout(() => {
+      if (conversationState.autoRecognition) {
+        startAutoRecognition();
+      }
+    }, 5000);
+    return;
+  }
+  
   try {
     // 현재 화자에 맞는 언어 설정
     const currentLang = conversationState.currentSpeaker === 'A' ? 
                        els.sourceLangSelect.value : els.targetLangSelect.value;
     
     recognition.lang = langCodeMap[currentLang];
+    
+    // 음성 인식 설정 최적화
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    
     recognition.start();
+    isRecording = true;
+    
+    updateMicStatus('granted');
+    els.micStatus.classList.add('listening', 'active');
+    els.micStatusText.textContent = `🎤 ${conversationState.currentSpeaker === 'A' ? '화자 A' : '화자 B'} 듣는 중...`;
+    
+    // 무음 감지 타임아웃 (10초)
+    conversationState.silenceTimeout = setTimeout(() => {
+      if (isRecording && conversationState.autoRecognition) {
+        console.log('무음 감지, 재시작...');
+        recognition.stop();
+      }
+    }, 10000);
+    
   } catch (e) {
     console.warn('음성 인식 시작 실패:', e);
-    setTimeout(() => {
+    conversationState.retryCount++;
+    
+    // 짧은 대기 후 재시도
+    conversationState.recognitionTimeout = setTimeout(() => {
       if (conversationState.autoRecognition) {
         startAutoRecognition();
       }
-    }, 1000);
+    }, 1000 + conversationState.retryCount * 500);
   }
 }
 
@@ -1146,11 +1355,14 @@ async function handleConversationTranslation(text) {
       await playConversationTranslation(translation, targetLang);
     }
     
+    // 성공 시 재시도 카운트 리셋
+    conversationState.retryCount = 0;
+    
     // 화자 전환
     switchSpeaker();
     
     // 연속 음성 인식 재시작
-    setTimeout(() => {
+    conversationState.recognitionTimeout = setTimeout(() => {
       if (conversationState.autoRecognition) {
         startAutoRecognition();
       }
@@ -1161,7 +1373,7 @@ async function handleConversationTranslation(text) {
     showStatus('번역 실패: ' + error.message, 'error');
     
     // 오류 시에도 음성 인식 재시작
-    setTimeout(() => {
+    conversationState.recognitionTimeout = setTimeout(() => {
       if (conversationState.autoRecognition) {
         startAutoRecognition();
       }
@@ -1173,12 +1385,13 @@ async function playConversationTranslation(text, language) {
   try {
     const volume = parseFloat(els.volumeControl.value);
     
+    // 베트남어는 브라우저 TTS 우선 사용
     if (language === 'Vietnamese' && ('speechSynthesis' in window)) {
       const success = speakWithBrowserTTS(text, 'vi-VN', null, volume);
       if (success) return;
     }
     
-    // 폴백: 서버 TTS
+    // 한국어/영어는 서버 TTS
     const resp = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1195,7 +1408,10 @@ async function playConversationTranslation(text, language) {
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
       audio.volume = volume;
-      audio.play();
+      
+      // 재생 최적화
+      audio.preload = 'auto';
+      await audio.play();
       
       audio.onended = () => {
         URL.revokeObjectURL(audioUrl);
@@ -1280,10 +1496,11 @@ function copyMessage(index) {
   });
 }
 
-// ===== 기존 함수들 (수정된 부분) =====
+// ===== 음성 인식 설정 (개선) =====
 function setupSpeechRecognition() {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
     if (els.voiceBtn) els.voiceBtn.disabled = true;
+    showStatus('음성 인식을 지원하지 않는 브라우저입니다', 'error');
     return;
   }
   
@@ -1291,9 +1508,23 @@ function setupSpeechRecognition() {
   recognition = new SR();
   recognition.continuous = false;
   recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  
+  // 중간 결과 처리
+  let finalTranscript = '';
+  let interimTranscript = '';
   
   recognition.onstart = () => { 
-    isRecording = true; 
+    isRecording = true;
+    finalTranscript = '';
+    interimTranscript = '';
+    
+    // 무음 타임아웃 클리어
+    if (conversationState.silenceTimeout) {
+      clearTimeout(conversationState.silenceTimeout);
+      conversationState.silenceTimeout = null;
+    }
+    
     if (!conversationState.isActive && els.voiceBtn) {
       els.voiceBtn.classList.add('recording'); 
       if (els.voiceText) els.voiceText.textContent = '듣는 중...'; 
@@ -1301,38 +1532,72 @@ function setupSpeechRecognition() {
   };
   
   recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
+    interimTranscript = '';
     
-    if (conversationState.isActive) {
-      // 대화 모드에서는 자동 번역 처리
-      handleConversationTranslation(transcript);
-    } else {
-      // 일반 모드에서는 기존 로직
-      if (els.inputText) els.inputText.value = transcript;
-      detectLanguage(transcript);
-      recognition.stop();
-      isRecording = false;
-      if (els.voiceBtn) { 
-        els.voiceBtn.classList.remove('recording'); 
-        if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript;
+      } else {
+        interimTranscript += transcript;
       }
-      handleTranslate();
+    }
+    
+    const fullTranscript = finalTranscript || interimTranscript;
+    
+    if (fullTranscript && event.results[event.results.length - 1].isFinal) {
+      if (conversationState.isActive) {
+        // 대화 모드에서는 자동 번역 처리
+        handleConversationTranslation(fullTranscript);
+      } else {
+        // 일반 모드에서는 기존 로직
+        if (els.inputText) els.inputText.value = fullTranscript;
+        detectLanguage(fullTranscript);
+        recognition.stop();
+        isRecording = false;
+        if (els.voiceBtn) { 
+          els.voiceBtn.classList.remove('recording'); 
+          if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
+        }
+        handleTranslate();
+      }
     }
   };
   
   recognition.onerror = (e) => { 
     console.warn('음성 인식 오류:', e); 
-    isRecording = false; 
+    isRecording = false;
+    
+    // 오류 타입별 처리
+    switch(e.error) {
+      case 'no-speech':
+        console.log('음성이 감지되지 않음');
+        break;
+      case 'audio-capture':
+        showStatus('마이크를 찾을 수 없습니다', 'error');
+        updateMicStatus('denied');
+        break;
+      case 'not-allowed':
+        showStatus('마이크 권한이 거부되었습니다', 'error');
+        updateMicStatus('denied');
+        break;
+      case 'network':
+        showStatus('네트워크 오류가 발생했습니다', 'error');
+        break;
+      default:
+        console.log('음성 인식 오류:', e.error);
+    }
     
     if (!conversationState.isActive) {
-      showStatus('음성 인식 오류', 'error'); 
       if (els.voiceBtn) { 
         els.voiceBtn.classList.remove('recording'); 
         if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
       }
     } else {
       // 대화 모드에서는 자동 재시작
-      setTimeout(() => {
+      conversationState.retryCount++;
+      conversationState.recognitionTimeout = setTimeout(() => {
         if (conversationState.autoRecognition) {
           startAutoRecognition();
         }
@@ -1341,10 +1606,24 @@ function setupSpeechRecognition() {
   };
   
   recognition.onend = () => { 
-    isRecording = false; 
+    isRecording = false;
+    
+    // 무음 타임아웃 클리어
+    if (conversationState.silenceTimeout) {
+      clearTimeout(conversationState.silenceTimeout);
+      conversationState.silenceTimeout = null;
+    }
+    
     if (!conversationState.isActive && els.voiceBtn) { 
       els.voiceBtn.classList.remove('recording'); 
       if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
+    }
+    
+    // 대화 모드에서 자동 재시작
+    if (conversationState.isActive && conversationState.autoRecognition) {
+      conversationState.recognitionTimeout = setTimeout(() => {
+        startAutoRecognition();
+      }, 500);
     }
   };
 }
@@ -1502,9 +1781,14 @@ function detectLanguage(text) {
     if (els.sourceLangSelect.value !== detectedLang) {
       els.sourceLangSelect.value = detectedLang;
       
-      if (detectedLang === 'Korean') els.targetLangSelect.value = 'Vietnamese';
-      else if (detectedLang === 'Vietnamese') els.targetLangSelect.value = 'Korean';
-      else els.targetLangSelect.value = 'Korean';
+      // 언어 조합 최적화
+      if (detectedLang === 'Korean') {
+        els.targetLangSelect.value = els.targetLangSelect.value === 'Korean' ? 'Vietnamese' : els.targetLangSelect.value;
+      } else if (detectedLang === 'Vietnamese') {
+        els.targetLangSelect.value = els.targetLangSelect.value === 'Vietnamese' ? 'Korean' : els.targetLangSelect.value;
+      } else if (detectedLang === 'English') {
+        els.targetLangSelect.value = els.targetLangSelect.value === 'English' ? 'Korean' : els.targetLangSelect.value;
+      }
       
       updateVietnameseControlsVisibility();
       updateSpeakerLanguages();
@@ -2022,10 +2306,16 @@ function copyTranslation() {
   });
 }
 
-function handleVoiceTranslate() {
+async function handleVoiceTranslate() {
   if (!recognition) { 
     showStatus('음성 인식 불가', 'error'); 
     return; 
+  }
+  
+  // 마이크 권한 체크
+  const hasPermission = await checkMicrophonePermission();
+  if (!hasPermission) {
+    updateMicStatus('prompt');
   }
   
   if (isRecording) {
@@ -2036,7 +2326,12 @@ function handleVoiceTranslate() {
       recognition.start();
     } catch (e) { 
       console.warn('음성 인식 시작 실패:', e); 
-      showStatus('음성 인식 시작 실패', 'error'); 
+      showStatus('음성 인식 시작 실패', 'error');
+      
+      // 권한 문제일 가능성이 높음
+      if (e.name === 'NotAllowedError') {
+        updateMicStatus('denied');
+      }
     }
   }
 }
@@ -2079,11 +2374,130 @@ function togglePronunciation() {
   }
 }
 
+// ===== 모바일 최적화 함수들 =====
+function detectMobileDevice() {
+  const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+  const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+  const isIOS = /iphone|ipad|ipod/.test(userAgent.toLowerCase());
+  const isAndroid = /android/.test(userAgent.toLowerCase());
+  
+  return {
+    isMobile,
+    isIOS,
+    isAndroid
+  };
+}
+
+function optimizeForMobile() {
+  const device = detectMobileDevice();
+  
+  if (device.isMobile) {
+    // 모바일 최적화 설정
+    document.body.classList.add('mobile-device');
+    
+    if (device.isIOS) {
+      document.body.classList.add('ios-device');
+      // iOS 특별 처리
+      preventIOSBounce();
+    }
+    
+    if (device.isAndroid) {
+      document.body.classList.add('android-device');
+    }
+    
+    // 모바일에서 자동 재생 방지
+    if (els.volumeControl) {
+      els.volumeControl.value = '0.5';
+      els.volumeValue.textContent = '50%';
+    }
+    
+    // 터치 이벤트 최적화
+    addTouchOptimization();
+  }
+}
+
+function preventIOSBounce() {
+  // iOS 바운스 효과 방지
+  document.addEventListener('touchmove', function(e) {
+    if (e.target.closest('.conversation-history') || e.target.closest('.modal-content')) {
+      return; // 스크롤 가능한 영역은 허용
+    }
+    e.preventDefault();
+  }, { passive: false });
+}
+
+function addTouchOptimization() {
+  // 터치 피드백 개선
+  const buttons = document.querySelectorAll('button, .toggle-switch');
+  buttons.forEach(btn => {
+    btn.addEventListener('touchstart', function() {
+      this.classList.add('touch-active');
+    });
+    
+    btn.addEventListener('touchend', function() {
+      setTimeout(() => {
+        this.classList.remove('touch-active');
+      }, 100);
+    });
+  });
+}
+
+// ===== 페이지 가시성 관리 (배터리 절약) =====
+function handleVisibilityChange() {
+  if (document.hidden) {
+    // 페이지가 백그라운드로 갈 때
+    if (conversationState.isActive && isRecording) {
+      console.log('백그라운드 진입 - 음성 인식 일시 중지');
+      if (recognition) {
+        try {
+          recognition.stop();
+        } catch (e) {
+          console.log('음성 인식 중지 실패:', e);
+        }
+      }
+    }
+    
+    // 오디오 정지
+    if (currentAudio && !currentAudio.paused) {
+      currentAudio.pause();
+    }
+    
+    if (window.currentVietnameseTTS) {
+      window.currentVietnameseTTS.stop();
+    }
+    
+    speechSynthesis.cancel();
+    
+  } else {
+    // 페이지가 포그라운드로 올 때
+    if (conversationState.isActive && conversationState.autoRecognition) {
+      console.log('포그라운드 복귀 - 음성 인식 재개');
+      setTimeout(() => {
+        startAutoRecognition();
+      }, 500);
+    }
+  }
+}
+
+// ===== 네트워크 상태 체크 =====
+function checkNetworkStatus() {
+  if (!navigator.onLine) {
+    showStatus('⚠️ 오프라인 상태입니다. 번역 기능을 사용할 수 없습니다.', 'error');
+    return false;
+  }
+  return true;
+}
+
 // ===== 이벤트 리스너 설정 =====
 document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   setupSpeechRecognition();
-  showStatus('Pro 버전 준비 완료 - 대화 모드 지원 🚀', 'success');
+  optimizeForMobile();
+  
+  // 초기 마이크 권한 체크 (백그라운드)
+  checkMicrophonePermission();
+  
+  showStatus('Pro 버전 준비 완료 - 안정화 버전 🚀', 'success');
 
   if (els.volumeControl) {
     els.volumeControl.addEventListener('input', (e) => {
@@ -2134,9 +2548,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 페이지 가시성 변경 감지
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  
+  // 네트워크 상태 변경 감지
+  window.addEventListener('online', () => {
+    showStatus('✅ 온라인 상태로 복귀했습니다', 'success');
+  });
+  
+  window.addEventListener('offline', () => {
+    showStatus('⚠️ 오프라인 상태입니다', 'error');
+  });
+
   window.onclick = (event) => { 
     if (event.target === els.historyModal) hideHistory(); 
   };
+  
+  // 페이지 언로드 시 정리
+  window.addEventListener('beforeunload', () => {
+    if (conversationState.isActive) {
+      stopConversation();
+    }
+    if (recognition && isRecording) {
+      recognition.stop();
+    }
+    if (currentAudio) {
+      currentAudio.pause();
+    }
+    speechSynthesis.cancel();
+  });
 });
 
 // ===== 전역 함수 노출 =====
@@ -2163,8 +2603,3 @@ window.stopConversation = stopConversation;
 window.clearConversation = clearConversation;
 window.replayMessage = replayMessage;
 window.copyMessage = copyMessage;
-
-</script>
-
-</body>
-</html>
