@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GPT 양방향 음성 번역기 Pro</title>
+    <title>GPT 양방향 음성 번역기 Pro - Enhanced</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -192,19 +192,6 @@
             text-align: right;
         }
         
-        /* 베트남어 속도 조절 */
-        .vietnamese-speed-setting {
-            background: #e8f5e8;
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 10px;
-            display: none;
-        }
-        
-        .vietnamese-speed-setting.active {
-            display: block;
-        }
-        
         /* 모드 선택 */
         .mode-selector {
             display: grid;
@@ -271,6 +258,19 @@
         .speaker-card.active {
             transform: scale(1.05);
             box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .speaker-card.active::after {
+            content: '🎤';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse { 
+            0%, 100% { transform: scale(1); opacity: 1; } 
+            50% { transform: scale(1.2); opacity: 0.7; } 
         }
         
         .speaker-title {
@@ -522,8 +522,13 @@
         }
         
         .btn-voice.recording { 
-            animation: pulse 1.5s infinite; 
+            animation: recording-pulse 1.5s infinite; 
             background: #FF5252; 
+        }
+        
+        @keyframes recording-pulse { 
+            0%, 100% { transform: scale(1); } 
+            50% { transform: scale(1.05); } 
         }
         
         .btn-clear { 
@@ -532,11 +537,6 @@
         
         .btn-history { 
             background: #4ECDC4; 
-        }
-        
-        @keyframes pulse { 
-            0%, 100% { transform: scale(1); } 
-            50% { transform: scale(1.05); } 
         }
         
         .result-section { 
@@ -661,6 +661,7 @@
         .status.error { color: var(--error); }
         .status.success { color: var(--success); }
         .status.warning { color: #856404; }
+        .status.info { color: var(--primary); }
         
         /* 모달 */
         .modal {
@@ -808,21 +809,6 @@
                             <span class="setting-value" id="volumeValue">80%</span>
                         </div>
                     </div>
-                    <div class="setting-item">
-                        <label class="setting-label">재생 속도</label>
-                        <div class="setting-control">
-                            <input type="range" id="globalSpeedControl" min="0.5" max="1.5" value="1.0" step="0.1" style="width: 100px;">
-                            <span class="setting-value" id="speedValue">1.0x</span>
-                        </div>
-                    </div>
-                </div>
-                <!-- 베트남어 전용 속도 조절 -->
-                <div class="vietnamese-speed-setting" id="vietnameseControls">
-                    <label class="setting-label">🇻🇳 베트남어 음성 속도 (더 자연스러운 조절)</label>
-                    <div class="setting-control">
-                        <input type="range" id="vietnameseSpeed" min="0.6" max="1.2" value="0.9" step="0.05" style="width: 100%;">
-                        <span class="setting-value" id="vietnameseSpeedValue">0.9x</span>
-                    </div>
                 </div>
             </div>
             
@@ -949,7 +935,10 @@
     </div>
     
 <script>
-// GPT 양방향 음성 번역기 Pro - 완전 수정 버전
+// 여기에 위의 enhanced-client-js 코드 전체를 삽입
+// + 기존 코드의 필요한 부분들 통합
+
+// GPT 양방향 음성 번역기 Pro - Enhanced Version
 const API_URL = 'https://knstranslator.netlify.app/.netlify/functions/translate';
 
 // DOM 요소들
@@ -967,11 +956,6 @@ const els = {
   voiceSelect: document.getElementById('voiceSelect'),
   volumeControl: document.getElementById('volumeControl'),
   volumeValue: document.getElementById('volumeValue'),
-  globalSpeedControl: document.getElementById('globalSpeedControl'),
-  speedValue: document.getElementById('speedValue'),
-  vietnameseSpeed: document.getElementById('vietnameseSpeed'),
-  vietnameseSpeedValue: document.getElementById('vietnameseSpeedValue'),
-  vietnameseControls: document.getElementById('vietnameseControls'),
   realtimeToggle: document.getElementById('realtimeToggle'),
   autoDetectBadge: document.getElementById('autoDetectBadge'),
   historyModal: document.getElementById('historyModal'),
@@ -996,12 +980,12 @@ const els = {
 // 전역 상태
 let currentTranslation = '';
 let currentSource = '';
+let currentChunks = [];
 let recognition = null;
 let isRecording = false;
 let currentAudio = null;
 let realtimeTimeout = null;
 let isRealtimeEnabled = false;
-const audioCache = new Map();
 
 // 대화 모드 상태
 let conversationState = {
@@ -1019,8 +1003,6 @@ const STORAGE_KEYS = {
   targetLang: 'targetLang',
   theme: 'theme',
   history: 'translationHistory',
-  vietnameseSpeed: 'vietnameseSpeed',
-  globalSpeed: 'globalSpeed',
   realtime: 'realtimeEnabled',
   stats: 'translationStats',
   conversationHistory: 'conversationHistory'
@@ -1033,24 +1015,151 @@ const langCodeMap = {
   'English': 'en-US'
 };
 
-// 설정 패널 토글
-function toggleSettings() {
-  if (els.settingsPanel) {
-    els.settingsPanel.classList.toggle('active');
+// ===== 오디오 큐 시스템 =====
+const audioQueue = [];
+let isQueuePlaying = false;
+
+function playAudioBlob(blob) {
+  const audioUrl = URL.createObjectURL(blob);
+  const audio = new Audio(audioUrl);
+  audio.volume = parseFloat(els.volumeControl?.value || 0.8);
+  
+  audio.onended = () => {
+    URL.revokeObjectURL(audioUrl);
+    playNextInQueue();
+  };
+  
+  audio.onerror = () => {
+    console.error('오디오 재생 실패');
+    playNextInQueue();
+  };
+  
+  audio.play().catch(e => {
+    console.error('재생 오류:', e);
+    playNextInQueue();
+  });
+}
+
+function queueAudioBlob(blob) {
+  audioQueue.push(blob);
+  if (!isQueuePlaying) {
+    playNextInQueue();
   }
 }
 
-// 테마 토글
-function toggleTheme() {
-  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-  const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', newTheme);
-  localStorage.setItem(STORAGE_KEYS.theme, newTheme);
-  const themeBtn = document.querySelector('.theme-toggle');
-  if (themeBtn) themeBtn.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+function playNextInQueue() {
+  if (audioQueue.length === 0) {
+    isQueuePlaying = false;
+    return;
+  }
+  
+  isQueuePlaying = true;
+  const blob = audioQueue.shift();
+  playAudioBlob(blob);
 }
 
-// 모드 전환
+// ===== 개선된 음성 인식 =====
+function setupSpeechRecognition() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    if (els.voiceBtn) els.voiceBtn.disabled = true;
+    return;
+  }
+  
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 3;
+  
+  let finalTranscript = '';
+  let silenceTimer = null;
+  
+  recognition.onstart = () => { 
+    isRecording = true;
+    finalTranscript = '';
+    
+    if (!conversationState.isActive && els.voiceBtn) {
+      els.voiceBtn.classList.add('recording'); 
+      if (els.voiceText) els.voiceText.textContent = '듣는 중...'; 
+    }
+    
+    if (conversationState.isActive) {
+      showStatus('🎤 듣는 중...', 'info');
+    }
+  };
+  
+  recognition.onresult = (event) => {
+    let interimTranscript = '';
+    
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript + ' ';
+        
+        if (silenceTimer) clearTimeout(silenceTimer);
+        
+        // 대화 모드: 1.5초 침묵 후 자동 종료
+        if (conversationState.isActive) {
+          silenceTimer = setTimeout(() => {
+            recognition.stop();
+          }, 1500);
+        }
+      } else {
+        interimTranscript += transcript;
+      }
+    }
+    
+    // 일반 모드: 중간 결과 표시
+    if (!conversationState.isActive && els.inputText) {
+      els.inputText.value = finalTranscript + interimTranscript;
+    }
+  };
+  
+  recognition.onerror = (e) => { 
+    console.warn('음성 인식 오류:', e);
+    isRecording = false;
+    
+    if (!conversationState.isActive) {
+      if (els.voiceBtn) { 
+        els.voiceBtn.classList.remove('recording'); 
+        if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
+      }
+    }
+    
+    if (conversationState.isActive && conversationState.autoRecognition) {
+      setTimeout(() => startAutoRecognition(), 2000);
+    }
+  };
+  
+  recognition.onend = () => { 
+    isRecording = false;
+    if (silenceTimer) clearTimeout(silenceTimer);
+    
+    const transcript = finalTranscript.trim();
+    
+    if (!conversationState.isActive) {
+      if (els.voiceBtn) { 
+        els.voiceBtn.classList.remove('recording'); 
+        if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
+      }
+      
+      if (transcript) {
+        if (els.inputText) els.inputText.value = transcript;
+        detectLanguage(transcript);
+        handleTranslate();
+      }
+    } else if (conversationState.isActive) {
+      if (transcript) {
+        handleConversationTranslation(transcript);
+      } else {
+        setTimeout(() => startAutoRecognition(), 500);
+      }
+    }
+  };
+}
+
+// ===== 대화 모드 함수들 =====
 function switchToNormalMode() {
   if (conversationState.isActive) {
     stopConversation();
@@ -1074,7 +1183,6 @@ function switchToConversationMode() {
   showStatus('대화 모드 - 실시간 양방향 번역', 'success');
 }
 
-// 화자 언어 업데이트
 function updateSpeakerLanguages() {
   if (els.speakerLangA && els.speakerLangB) {
     const sourceLang = els.sourceLangSelect.value;
@@ -1087,7 +1195,21 @@ function updateSpeakerLanguages() {
   }
 }
 
-// 대화 시작
+function updateActiveSpeaker() {
+  if (conversationState.currentSpeaker === 'A') {
+    els.speakerCardA.classList.add('active');
+    els.speakerCardB.classList.remove('active');
+  } else {
+    els.speakerCardA.classList.remove('active');
+    els.speakerCardB.classList.add('active');
+  }
+}
+
+function switchSpeaker() {
+  conversationState.currentSpeaker = conversationState.currentSpeaker === 'A' ? 'B' : 'A';
+  updateActiveSpeaker();
+}
+
 function startConversation() {
   conversationState.isActive = true;
   conversationState.currentSpeaker = 'A';
@@ -1102,7 +1224,6 @@ function startConversation() {
   startAutoRecognition();
 }
 
-// 대화 종료
 function stopConversation() {
   conversationState.isActive = false;
   conversationState.autoRecognition = false;
@@ -1120,7 +1241,6 @@ function stopConversation() {
   showStatus('대화 종료', 'warning');
 }
 
-// 대화 지우기
 function clearConversation() {
   if (confirm('대화 내용을 모두 지우시겠습니까?')) {
     conversationState.messages = [];
@@ -1130,24 +1250,6 @@ function clearConversation() {
   }
 }
 
-// 활성 화자 업데이트
-function updateActiveSpeaker() {
-  if (conversationState.currentSpeaker === 'A') {
-    els.speakerCardA.classList.add('active');
-    els.speakerCardB.classList.remove('active');
-  } else {
-    els.speakerCardA.classList.remove('active');
-    els.speakerCardB.classList.add('active');
-  }
-}
-
-// 화자 전환
-function switchSpeaker() {
-  conversationState.currentSpeaker = conversationState.currentSpeaker === 'A' ? 'B' : 'A';
-  updateActiveSpeaker();
-}
-
-// 자동 음성 인식
 async function startAutoRecognition() {
   if (!conversationState.autoRecognition || !recognition) return;
   
@@ -1156,7 +1258,16 @@ async function startAutoRecognition() {
                        els.sourceLangSelect.value : els.targetLangSelect.value;
     
     recognition.lang = langCodeMap[currentLang];
-    recognition.start();
+    
+    const speakerName = conversationState.currentSpeaker === 'A' ? '화자 A' : '화자 B';
+    const langName = currentLang === 'Korean' ? '한국어' : 
+                    currentLang === 'Vietnamese' ? '베트남어' : '영어';
+    showStatus(`🎤 ${speakerName} 차례 - ${langName}로 말씀해주세요`, 'info');
+    
+    setTimeout(() => {
+      recognition.start();
+    }, 300);
+    
   } catch (e) {
     console.warn('음성 인식 시작 실패:', e);
     setTimeout(() => {
@@ -1167,13 +1278,14 @@ async function startAutoRecognition() {
   }
 }
 
-// 대화 번역 처리
 async function handleConversationTranslation(text) {
   const currentSpeaker = conversationState.currentSpeaker;
   const isReverseTranslation = currentSpeaker === 'B';
   
   const sourceLang = isReverseTranslation ? els.targetLangSelect.value : els.sourceLangSelect.value;
   const targetLang = isReverseTranslation ? els.sourceLangSelect.value : els.targetLangSelect.value;
+  
+  showStatus('번역 중...', 'info');
   
   try {
     const resp = await fetch(API_URL, {
@@ -1190,6 +1302,7 @@ async function handleConversationTranslation(text) {
     if (data.error) throw new Error(data.error);
     
     const translation = data.translation || '';
+    const chunks = data.chunks || [translation];
     
     const message = {
       speaker: currentSpeaker,
@@ -1204,8 +1317,9 @@ async function handleConversationTranslation(text) {
     saveConversationHistory();
     updateConversationHistory();
     
-    if (translation) {
-      await playConversationTranslation(translation, targetLang);
+    if (chunks.length > 0) {
+      showStatus('🔊 재생 중...', 'success');
+      await playChunkedAudio(chunks, targetLang);
     }
     
     switchSpeaker();
@@ -1214,7 +1328,7 @@ async function handleConversationTranslation(text) {
       if (conversationState.autoRecognition) {
         startAutoRecognition();
       }
-    }, 1500);
+    }, 500);
     
   } catch (error) {
     console.error('대화 번역 오류:', error);
@@ -1228,45 +1342,34 @@ async function handleConversationTranslation(text) {
   }
 }
 
-// 대화 음성 재생
-async function playConversationTranslation(text, language) {
-  try {
-    const volume = parseFloat(els.volumeControl.value || 0.8);
-    if (language === 'Vietnamese' && ('speechSynthesis' in window)) {
-      // await chunked browser TTS; if it returns true we've played via browser
-      const ok = await speakWithBrowserTTS(text, 'vi-VN', null, volume);
-      if (ok) return;
+async function playChunkedAudio(chunks, language) {
+  const useGoogleTTS = language === 'Vietnamese';
+  const voice = els.voiceSelect?.value || 'alloy';
+  
+  for (const chunk of chunks) {
+    try {
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'speak',
+          inputText: chunk,
+          voice: voice,
+          language: language,
+          useGoogleTTS: useGoogleTTS
+        })
+      });
+      
+      if (resp.ok) {
+        const blob = await resp.blob();
+        queueAudioBlob(blob);
+      }
+    } catch (error) {
+      console.error('청크 오디오 요청 실패:', error);
     }
-
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'speak',
-        inputText: text,
-        voice: els.voiceSelect.value,
-        language: language
-      })
-    });
-
-    if (resp.ok) {
-      const audioBlob = await resp.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      audio.volume = volume;
-      audio.play();
-
-      audio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-      };
-    }
-  } catch (error) {
-
-    console.error('대화 음성 재생 오류:', error);
   }
 }
 
-// 대화 히스토리 저장
 function saveConversationHistory() {
   try {
     localStorage.setItem(STORAGE_KEYS.conversationHistory, JSON.stringify(conversationState.messages));
@@ -1275,7 +1378,6 @@ function saveConversationHistory() {
   }
 }
 
-// 대화 히스토리 로드
 function loadConversationHistory() {
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.conversationHistory);
@@ -1288,7 +1390,6 @@ function loadConversationHistory() {
   }
 }
 
-// 대화 히스토리 업데이트
 function updateConversationHistory() {
   if (!els.conversationHistory) return;
   
@@ -1322,15 +1423,13 @@ function updateConversationHistory() {
   els.conversationHistory.scrollTop = els.conversationHistory.scrollHeight;
 }
 
-// 메시지 재생
 async function replayMessage(index) {
   const message = conversationState.messages[index];
   if (!message) return;
   
-  await playConversationTranslation(message.translation, message.targetLang);
+  await playChunkedAudio([message.translation], message.targetLang);
 }
 
-// 메시지 복사
 function copyMessage(index) {
   const message = conversationState.messages[index];
   if (!message) return;
@@ -1343,82 +1442,254 @@ function copyMessage(index) {
   });
 }
 
-// 음성 인식 설정
-function setupSpeechRecognition() {
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    if (els.voiceBtn) els.voiceBtn.disabled = true;
+// ===== 일반 모드 함수들 =====
+async function handleTranslate() {
+  const text = (els.inputText && els.inputText.value) ? els.inputText.value.trim() : '';
+  if (!text) return;
+  
+  if (els.translation) els.translation.textContent = '번역 중...';
+  showStatus('번역 요청중...', 'info');
+
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        action: 'translate', 
+        inputText: text, 
+        targetLang: els.targetLangSelect ? els.targetLangSelect.value : 'Vietnamese' 
+      })
+    });
+    
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    
+    currentTranslation = data.translation || '';
+    currentSource = text;
+    currentChunks = data.chunks || [];
+    const pronunciation = data.pronunciation_hangul || data.pronunciation || '';
+    
+    if (els.translation) els.translation.textContent = currentTranslation || '번역 결과 없음';
+    if (els.pronunciation) els.pronunciation.textContent = pronunciation || '';
+    if (els.speakBtn) els.speakBtn.disabled = !currentTranslation;
+    if (els.copyBtn) els.copyBtn.disabled = !currentTranslation;
+    
+    saveToHistory(text, currentTranslation, 
+      els.sourceLangSelect ? els.sourceLangSelect.value : '', 
+      els.targetLangSelect ? els.targetLangSelect.value : ''
+    );
+    
+    updateStats(text.length);
+    showStatus('번역 완료', 'success');
+  } catch (err) {
+    console.error('translate error', err);
+    if (els.translation) els.translation.textContent = '번역 실패';
+    showStatus('번역 실패: ' + (err.message || ''), 'error');
+  }
+}
+
+async function handleSpeak() {
+  if (!currentTranslation) return;
+  
+  if (currentAudio && !currentAudio.paused) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+  
+  if (els.speakBtn && els.speakBtn.textContent.includes('⏸️')) {
+    els.speakBtn.textContent = '🔊 듣기';
     return;
   }
   
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  
-  recognition.onstart = () => { 
-    isRecording = true; 
-    if (!conversationState.isActive && els.voiceBtn) {
-      els.voiceBtn.classList.add('recording'); 
-      if (els.voiceText) els.voiceText.textContent = '듣는 중...'; 
-    }
-  };
-  
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    try {
-      // stop immediately to avoid overlapping recognition
-      try { recognition.stop(); } catch(e){}
-      isRecording = false;
-      if (conversationState.isActive) {
-        handleConversationTranslation(transcript);
-      } else {
-        if (els.inputText) els.inputText.value = transcript;
-        detectLanguage(transcript);
-        if (els.voiceBtn) { els.voiceBtn.classList.remove('recording'); if (els.voiceText) els.voiceText.textContent = '음성 번역'; }
-        handleTranslate();
-      }
-    } catch (e) {
-      console.warn('onresult handler error', e);
-    }
-  };
-  
-  recognition.onerror = (e) => { 
-    console.warn('음성 인식 오류:', e); 
-    isRecording = false; 
+  if (els.speakBtn) {
+    els.speakBtn.textContent = '⏳';
+    els.speakBtn.disabled = true;
+  }
+
+  try {
+    const targetLang = els.targetLangSelect ? els.targetLangSelect.value : 'Vietnamese';
     
-    if (!conversationState.isActive) {
-      showStatus('음성 인식 오류', 'error'); 
-      if (els.voiceBtn) { 
-        els.voiceBtn.classList.remove('recording'); 
-        if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
-      }
+    if (currentChunks && currentChunks.length > 0) {
+      showStatus('🔊 재생 중...', 'success');
+      await playChunkedAudio(currentChunks, targetLang);
     } else {
-      setTimeout(() => {
-        if (conversationState.autoRecognition) {
-          startAutoRecognition();
-        }
-      }, 2000);
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'speak',
+          inputText: currentTranslation,
+          voice: els.voiceSelect?.value || 'alloy',
+          language: targetLang,
+          useGoogleTTS: targetLang === 'Vietnamese'
+        })
+      });
+      
+      if (resp.ok) {
+        const blob = await resp.blob();
+        playAudioBlob(blob);
+      }
     }
-  };
-  
-  recognition.onend = () => {
-    isRecording = false;
-    if (!conversationState.isActive && els.voiceBtn) {
-      els.voiceBtn.classList.remove('recording');
-      if (els.voiceText) els.voiceText.textContent = '음성 번역';
+    
+    if (els.speakBtn) {
+      els.speakBtn.textContent = '🔊 듣기';
+      els.speakBtn.disabled = false;
     }
-    // If conversation auto recognition is enabled, restart after short delay
-    if (conversationState.isActive && conversationState.autoRecognition) {
-      setTimeout(() => {
-        try {
-          startAutoRecognition();
-        } catch(e) { console.warn('restart auto recognition failed', e); }
-      }, 300);
+
+  } catch (e) {
+    console.error('handleSpeak 오류:', e);
+    if (els.speakBtn) {
+      els.speakBtn.textContent = '🔊 듣기';
+      els.speakBtn.disabled = false;
     }
-  };
+    showStatus('음성 재생 오류', 'error');
+  }
 }
 
-// 통계 관련
+function handleVoiceTranslate() {
+  if (!recognition) { 
+    showStatus('음성 인식 불가', 'error'); 
+    return; 
+  }
+  
+  if (isRecording) {
+    recognition.stop();
+  } else {
+    try {
+      recognition.lang = langCodeMap[els.sourceLangSelect ? els.sourceLangSelect.value : 'Korean'];
+      recognition.start();
+    } catch (e) { 
+      console.warn('음성 인식 시작 실패:', e); 
+      showStatus('음성 인식 시작 실패', 'error'); 
+    }
+  }
+}
+
+// ===== 유틸리티 함수들 =====
+function showStatus(message, type = '') {
+  if (!els.status) return;
+  els.status.textContent = message;
+  els.status.className = 'status ' + type;
+  if (message) setTimeout(() => { 
+    els.status.textContent = ''; 
+    els.status.className = 'status'; 
+  }, 3000);
+}
+
+function escapeHtml(unsafe) {
+  if (!unsafe) return '';
+  return unsafe.replace(/[&<"']/g, function (m) {
+    return ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;' }[m]);
+  });
+}
+
+function detectLanguage(text) {
+  const koreanRegex = /[가-힣]/;
+  const vietnameseRegex = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđĐ]/i;
+  
+  let detectedLang = 'English';
+  if (koreanRegex.test(text)) detectedLang = 'Korean';
+  else if (vietnameseRegex.test(text)) detectedLang = 'Vietnamese';
+
+  if (els.sourceLangSelect && els.autoDetectBadge) {
+    if (els.sourceLangSelect.value !== detectedLang) {
+      els.sourceLangSelect.value = detectedLang;
+      
+      if (detectedLang === 'Korean') els.targetLangSelect.value = 'Vietnamese';
+      else if (detectedLang === 'Vietnamese') els.targetLangSelect.value = 'Korean';
+      else els.targetLangSelect.value = 'Korean';
+      
+      updateSpeakerLanguages();
+      
+      els.autoDetectBadge.classList.add('active');
+      setTimeout(() => els.autoDetectBadge.classList.remove('active'), 1600);
+    }
+  }
+  return detectedLang;
+}
+
+function toggleSettings() {
+  if (els.settingsPanel) {
+    els.settingsPanel.classList.toggle('active');
+  }
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+  const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem(STORAGE_KEYS.theme, newTheme);
+  const themeBtn = document.querySelector('.theme-toggle');
+  if (themeBtn) themeBtn.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+}
+
+function toggleRealtime() {
+  isRealtimeEnabled = !isRealtimeEnabled;
+  if (els.realtimeToggle) {
+    els.realtimeToggle.classList.toggle('active', isRealtimeEnabled);
+  }
+  localStorage.setItem(STORAGE_KEYS.realtime, isRealtimeEnabled);
+  showStatus(isRealtimeEnabled ? '실시간 번역 활성화' : '실시간 번역 비활성화', 'success');
+}
+
+function swapLanguages() {
+  if (!els.sourceLangSelect || !els.targetLangSelect) return;
+  const s = els.sourceLangSelect.value;
+  const t = els.targetLangSelect.value;
+  els.sourceLangSelect.value = t;
+  els.targetLangSelect.value = s;
+  updateSpeakerLanguages();
+  saveSettings();
+  clearAll();
+}
+
+function copyTranslation() {
+  if (!currentTranslation) return;
+  navigator.clipboard.writeText(currentTranslation).then(() => {
+    if (els.copyBtn) { 
+      const original = els.copyBtn.textContent; 
+      els.copyBtn.textContent = '✅ 복사됨'; 
+      setTimeout(() => els.copyBtn.textContent = original, 1500); 
+    }
+  }).catch((e) => { 
+    showStatus('복사 실패', 'error'); 
+  });
+}
+
+function clearAll() {
+  if (els.inputText) els.inputText.value = '';
+  clearResult();
+}
+
+function clearResult() {
+  if (els.translation) els.translation.textContent = '번역 결과가 여기에 표시됩니다';
+  if (els.pronunciation) els.pronunciation.textContent = '발음 표기가 여기에 표시됩니다';
+  if (els.speakBtn) els.speakBtn.disabled = true;
+  if (els.copyBtn) els.copyBtn.disabled = true;
+  currentTranslation = '';
+  currentSource = '';
+  currentChunks = [];
+  if (currentAudio) { 
+    currentAudio.pause(); 
+    currentAudio = null; 
+  }
+}
+
+function togglePronunciation() {
+  const pronDiv = els.pronunciation;
+  const toggle = document.getElementById('pronToggle');
+  if (!pronDiv) return;
+  
+  if (pronDiv.style.display === 'none') { 
+    pronDiv.style.display = 'block'; 
+    if (toggle) toggle.textContent = '▼'; 
+  } else { 
+    pronDiv.style.display = 'none'; 
+    if (toggle) toggle.textContent = '▶'; 
+  }
+}
+
+// ===== 통계 및 히스토리 =====
 function getStats() {
   const stats = localStorage.getItem(STORAGE_KEYS.stats);
   return stats ? JSON.parse(stats) : {
@@ -1462,143 +1733,6 @@ function displayStats() {
   }
 }
 
-// 상태 표시
-function showStatus(message, type = '') {
-  if (!els.status) return;
-  els.status.textContent = message;
-  els.status.className = 'status ' + type;
-  if (message) setTimeout(() => { 
-    els.status.textContent = ''; 
-    els.status.className = 'status'; 
-  }, 3000);
-}
-
-// HTML 이스케이프
-function escapeHtml(unsafe) {
-  if (!unsafe) return '';
-  return unsafe.replace(/[&<"']/g, function (m) {
-    return ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;' }[m]);
-  });
-}
-
-// 설정 로드
-function loadSettings() {
-  try {
-    const savedVolume = localStorage.getItem(STORAGE_KEYS.volume) || '0.8';
-    if (els.volumeControl) els.volumeControl.value = savedVolume;
-    if (els.volumeValue) els.volumeValue.textContent = Math.round(savedVolume * 100) + '%';
-    
-    const savedGlobalSpeed = localStorage.getItem(STORAGE_KEYS.globalSpeed) || '1.0';
-    if (els.globalSpeedControl) els.globalSpeedControl.value = savedGlobalSpeed;
-    if (els.speedValue) els.speedValue.textContent = savedGlobalSpeed + 'x';
-    
-    const savedVietnameseSpeed = localStorage.getItem(STORAGE_KEYS.vietnameseSpeed) || '0.9';
-    if (els.vietnameseSpeed) els.vietnameseSpeed.value = savedVietnameseSpeed;
-    if (els.vietnameseSpeedValue) els.vietnameseSpeedValue.textContent = savedVietnameseSpeed + 'x';
-    
-    const savedVoice = localStorage.getItem(STORAGE_KEYS.voice);
-    if (savedVoice && els.voiceSelect) els.voiceSelect.value = savedVoice;
-    
-    const savedSourceLang = localStorage.getItem(STORAGE_KEYS.sourceLang);
-    if (savedSourceLang && els.sourceLangSelect) els.sourceLangSelect.value = savedSourceLang;
-    
-    const savedTargetLang = localStorage.getItem(STORAGE_KEYS.targetLang);
-    if (savedTargetLang && els.targetLangSelect) els.targetLangSelect.value = savedTargetLang;
-    
-    const savedRealtime = localStorage.getItem(STORAGE_KEYS.realtime) === 'true';
-    isRealtimeEnabled = savedRealtime;
-    if (els.realtimeToggle) {
-      els.realtimeToggle.classList.toggle('active', savedRealtime);
-    }
-    
-    const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    const themeBtn = document.querySelector('.theme-toggle');
-    if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-    
-    updateVietnameseControlsVisibility();
-    updateSpeakerLanguages();
-    displayStats();
-    loadConversationHistory();
-  } catch (e) {
-    console.warn('loadSettings error', e);
-  }
-}
-
-// 설정 저장
-function saveSettings() {
-  try {
-    if (els.volumeControl) localStorage.setItem(STORAGE_KEYS.volume, els.volumeControl.value);
-    if (els.globalSpeedControl) localStorage.setItem(STORAGE_KEYS.globalSpeed, els.globalSpeedControl.value);
-    if (els.vietnameseSpeed) localStorage.setItem(STORAGE_KEYS.vietnameseSpeed, els.vietnameseSpeed.value);
-    if (els.voiceSelect) localStorage.setItem(STORAGE_KEYS.voice, els.voiceSelect.value);
-    if (els.sourceLangSelect) localStorage.setItem(STORAGE_KEYS.sourceLang, els.sourceLangSelect.value);
-    if (els.targetLangSelect) localStorage.setItem(STORAGE_KEYS.targetLang, els.targetLangSelect.value);
-    localStorage.setItem(STORAGE_KEYS.realtime, isRealtimeEnabled);
-  } catch (e) {
-    console.warn('saveSettings error', e);
-  }
-}
-
-// 실시간 번역 토글
-function toggleRealtime() {
-  isRealtimeEnabled = !isRealtimeEnabled;
-  if (els.realtimeToggle) {
-    els.realtimeToggle.classList.toggle('active', isRealtimeEnabled);
-  }
-  localStorage.setItem(STORAGE_KEYS.realtime, isRealtimeEnabled);
-  showStatus(isRealtimeEnabled ? '실시간 번역 활성화' : '실시간 번역 비활성화', 'success');
-}
-
-// 베트남어 컨트롤 표시
-function updateVietnameseControlsVisibility() {
-  const isVietnamese = els.targetLangSelect && els.targetLangSelect.value === 'Vietnamese';
-  if (els.vietnameseControls) {
-    els.vietnameseControls.classList.toggle('active', isVietnamese);
-  }
-}
-
-// 언어 감지
-function detectLanguage(text) {
-  const koreanRegex = /[가-힣]/;
-  const vietnameseRegex = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđĐ]/i;
-  
-  let detectedLang = 'English';
-  if (koreanRegex.test(text)) detectedLang = 'Korean';
-  else if (vietnameseRegex.test(text)) detectedLang = 'Vietnamese';
-
-  if (els.sourceLangSelect && els.autoDetectBadge) {
-    if (els.sourceLangSelect.value !== detectedLang) {
-      els.sourceLangSelect.value = detectedLang;
-      
-      if (detectedLang === 'Korean') els.targetLangSelect.value = 'Vietnamese';
-      else if (detectedLang === 'Vietnamese') els.targetLangSelect.value = 'Korean';
-      else els.targetLangSelect.value = 'Korean';
-      
-      updateVietnameseControlsVisibility();
-      updateSpeakerLanguages();
-      
-      els.autoDetectBadge.classList.add('active');
-      setTimeout(() => els.autoDetectBadge.classList.remove('active'), 1600);
-    }
-  }
-  return detectedLang;
-}
-
-// 언어 교환
-function swapLanguages() {
-  if (!els.sourceLangSelect || !els.targetLangSelect) return;
-  const s = els.sourceLangSelect.value;
-  const t = els.targetLangSelect.value;
-  els.sourceLangSelect.value = t;
-  els.targetLangSelect.value = s;
-  updateVietnameseControlsVisibility();
-  updateSpeakerLanguages();
-  saveSettings();
-  clearAll();
-}
-
-// 히스토리 관련
 function getHistory() {
   const history = localStorage.getItem(STORAGE_KEYS.history);
   return history ? JSON.parse(history) : [];
@@ -1655,7 +1789,6 @@ function loadFromHistory(index) {
   if (els.sourceLangSelect) els.sourceLangSelect.value = item.sourceLang;
   if (els.targetLangSelect) els.targetLangSelect.value = item.targetLang;
   
-  updateVietnameseControlsVisibility();
   updateSpeakerLanguages();
   hideHistory();
   handleTranslate();
@@ -1668,54 +1801,53 @@ function clearHistory() {
   } 
 }
 
-// 번역 처리
-async function handleTranslate() {
-  const text = (els.inputText && els.inputText.value) ? els.inputText.value.trim() : '';
-  if (!text) return;
-  
-  if (els.translation) els.translation.textContent = '번역 중...';
-  showStatus('번역 요청중...', 'info');
-
+// ===== 설정 관리 =====
+function loadSettings() {
   try {
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        action: 'translate', 
-        inputText: text, 
-        targetLang: els.targetLangSelect ? els.targetLangSelect.value : 'Vietnamese' 
-      })
-    });
+    const savedVolume = localStorage.getItem(STORAGE_KEYS.volume) || '0.8';
+    if (els.volumeControl) els.volumeControl.value = savedVolume;
+    if (els.volumeValue) els.volumeValue.textContent = Math.round(savedVolume * 100) + '%';
     
-    const data = await resp.json();
-    if (data.error) throw new Error(data.error);
+    const savedVoice = localStorage.getItem(STORAGE_KEYS.voice);
+    if (savedVoice && els.voiceSelect) els.voiceSelect.value = savedVoice;
     
-    currentTranslation = data.translation || '';
-    currentSource = text;
-    const pronunciation = data.pronunciation_hangul || data.pronunciation || '';
+    const savedSourceLang = localStorage.getItem(STORAGE_KEYS.sourceLang);
+    if (savedSourceLang && els.sourceLangSelect) els.sourceLangSelect.value = savedSourceLang;
     
-    if (els.translation) els.translation.textContent = currentTranslation || '번역 결과 없음';
-    if (els.pronunciation) els.pronunciation.textContent = pronunciation || '';
-    if (els.speakBtn) els.speakBtn.disabled = !currentTranslation;
-    if (els.copyBtn) els.copyBtn.disabled = !currentTranslation;
+    const savedTargetLang = localStorage.getItem(STORAGE_KEYS.targetLang);
+    if (savedTargetLang && els.targetLangSelect) els.targetLangSelect.value = savedTargetLang;
     
-    saveToHistory(
-      text, 
-      currentTranslation, 
-      els.sourceLangSelect ? els.sourceLangSelect.value : '', 
-      els.targetLangSelect ? els.targetLangSelect.value : ''
-    );
+    const savedRealtime = localStorage.getItem(STORAGE_KEYS.realtime) === 'true';
+    isRealtimeEnabled = savedRealtime;
+    if (els.realtimeToggle) {
+      els.realtimeToggle.classList.toggle('active', savedRealtime);
+    }
     
-    updateStats(text.length);
-    showStatus('번역 완료', 'success');
-  } catch (err) {
-    console.error('translate error', err);
-    if (els.translation) els.translation.textContent = '번역 실패';
-    showStatus('번역 실패: ' + (err.message || ''), 'error');
+    const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    const themeBtn = document.querySelector('.theme-toggle');
+    if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+    
+    updateSpeakerLanguages();
+    displayStats();
+    loadConversationHistory();
+  } catch (e) {
+    console.warn('loadSettings error', e);
   }
 }
 
-// 실시간 번역
+function saveSettings() {
+  try {
+    if (els.volumeControl) localStorage.setItem(STORAGE_KEYS.volume, els.volumeControl.value);
+    if (els.voiceSelect) localStorage.setItem(STORAGE_KEYS.voice, els.voiceSelect.value);
+    if (els.sourceLangSelect) localStorage.setItem(STORAGE_KEYS.sourceLang, els.sourceLangSelect.value);
+    if (els.targetLangSelect) localStorage.setItem(STORAGE_KEYS.targetLang, els.targetLangSelect.value);
+    localStorage.setItem(STORAGE_KEYS.realtime, isRealtimeEnabled);
+  } catch (e) {
+    console.warn('saveSettings error', e);
+  }
+}
+
 function handleRealtimeTranslate() {
   if (!isRealtimeEnabled) return;
   
@@ -1729,268 +1861,11 @@ function handleRealtimeTranslate() {
   }, 1000);
 }
 
-
-// ===== 개선된 브라우저 TTS 헬퍼 (문장 분절 + 음성 선택 + Promise 반환) =====
-function chooseBestVietnameseVoice() {
-  const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
-  if (!voices || voices.length === 0) return null;
-  // 우선순위: 이름에 'Google' 또는 'WaveNet' 포함한 vi 음성 -> vi 음성 -> any vi-like -> fallback
-  let v = voices.find(x => x.name && (x.name.includes('Google') || x.name.includes('WaveNet')) && x.lang && x.lang.startsWith('vi'));
-  if (!v) v = voices.find(x => x.lang && x.lang.startsWith('vi'));
-  if (!v) v = voices.find(x => x.lang && x.lang.toLowerCase().startsWith('vi'));
-  return v || voices[0];
-}
-
-function splitForTTS(text, maxLen = 120) {
-  if (!text) return [];
-  // 먼저 문장부호 기준으로 자른 뒤, 길면 공백 기준으로 잘라서 청크 생성
-  const cand = text.split(/(?<=[\.\?\!]|…|\n)/g).map(s => s.trim()).filter(Boolean);
-  const out = [];
-  for (let part of cand) {
-    if (part.length <= maxLen) {
-      out.push(part);
-    } else {
-      while (part.length > maxLen) {
-        let cut = part.lastIndexOf(' ', maxLen);
-        if (cut <= 0) cut = maxLen;
-        out.push(part.slice(0, cut).trim());
-        part = part.slice(cut).trim();
-      }
-      if (part) out.push(part);
-    }
-  }
-  return out;
-}
-// 베트남어 TTS
-
-function speakWithBrowserTTS(text, lang = 'vi-VN', customRate = null, volume = 0.9) {
-  // 반환: Promise<boolean> — 성공 시 true, 실패 또는 브라우저 미지원 시 false
-  return new Promise((resolve) => {
-    try {
-      if (!('speechSynthesis' in window)) return resolve(false);
-
-      const rateFromUI = customRate || (els.vietnameseSpeed ? parseFloat(els.vietnameseSpeed.value) : (els.globalSpeedControl ? parseFloat(els.globalSpeedControl.value) : 1.0));
-      const pitch = 1.0;
-      const chunks = splitForTTS(text, 110);
-      if (!chunks.length) return resolve(false);
-
-      let voice = chooseBestVietnameseVoice();
-
-      // Ensure voices loaded
-      const startPlaying = () => {
-        speechSynthesis.cancel();
-        let idx = 0;
-        function playNext() {
-          if (idx >= chunks.length) {
-            return resolve(true);
-          }
-          const u = new SpeechSynthesisUtterance(chunks[idx]);
-          u.lang = lang;
-          u.rate = rateFromUI;
-          u.pitch = pitch;
-          u.volume = volume;
-          if (voice) u.voice = voice;
-          u.onend = () => {
-            idx++;
-            const pause = Math.min(300, 60 + Math.min(200, chunks[idx-1].length * 3));
-            setTimeout(playNext, pause);
-          };
-          u.onerror = () => {
-            idx++;
-            setTimeout(playNext, 150);
-          };
-          speechSynthesis.speak(u);
-        }
-        playNext();
-      };
-
-      const voices = speechSynthesis.getVoices();
-      if (!voices || voices.length === 0) {
-        // wait for voiceschanged
-        const onVoices = () => {
-          try {
-            speechSynthesis.removeEventListener('voiceschanged', onVoices);
-          } catch(e){/*ignore*/}
-          voice = chooseBestVietnameseVoice();
-          startPlaying();
-        };
-        speechSynthesis.addEventListener('voiceschanged', onVoices);
-        // fallback timeout: if voiceschanged doesn't fire, proceed after small delay
-        setTimeout(() => {
-          voice = chooseBestVietnameseVoice();
-          startPlaying();
-        }, 300);
-      } else {
-        voice = chooseBestVietnameseVoice();
-        startPlaying();
-      }
-    } catch (e) {
-      console.warn('browser tts error', e);
-      return resolve(false);
-    }
-  });
-}
-// 음성 재생
-async function handleSpeak() {
-  if (!currentTranslation) return;
-  
-  if (currentAudio && !currentAudio.paused) {
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
-    currentAudio = null;
-  }
-  
-  speechSynthesis.cancel();
-  
-  if (els.speakBtn && els.speakBtn.textContent.includes('⏸️')) {
-    els.speakBtn.textContent = '🔊 듣기';
-    return;
-  }
-  
-  if (els.speakBtn) {
-    els.speakBtn.textContent = '⏳';
-    els.speakBtn.disabled = true;
-  }
-
-  try {
-    const targetLang = els.targetLangSelect ? els.targetLangSelect.value : 'Vietnamese';
-    const volume = parseFloat((els.volumeControl && els.volumeControl.value) ? els.volumeControl.value : 0.8);
-
-    if (targetLang === 'Vietnamese' && ('speechSynthesis' in window)) {
-      const success = speakWithBrowserTTS(currentTranslation, 'vi-VN', null, volume);
-      
-      if (success) {
-        showStatus('베트남어 음성 재생 중', 'success');
-        if (els.speakBtn) {
-          els.speakBtn.textContent = '🔊 듣기';
-          els.speakBtn.disabled = false;
-        }
-        return;
-      }
-    }
-
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'speak',
-        inputText: currentTranslation,
-        voice: els.voiceSelect ? els.voiceSelect.value : 'alloy',
-        language: targetLang
-      })
-    });
-    
-    if (!resp.ok) throw new Error('TTS 서버 오류');
-    const audioBlob = await resp.blob();
-    
-    const audioUrl = URL.createObjectURL(audioBlob);
-    currentAudio = new Audio(audioUrl);
-    currentAudio.volume = volume;
-    
-    currentAudio.addEventListener('playing', () => {
-      if (els.speakBtn) {
-        els.speakBtn.textContent = '⏸️';
-        els.speakBtn.disabled = false;
-      }
-      showStatus('재생 중', 'success');
-    });
-    
-    currentAudio.addEventListener('ended', () => {
-      if (els.speakBtn) {
-        els.speakBtn.textContent = '🔊 듣기';
-        els.speakBtn.disabled = false;
-      }
-      URL.revokeObjectURL(audioUrl);
-      currentAudio = null;
-    });
-    
-    await currentAudio.play();
-
-  } catch (e) {
-    console.error('handleSpeak 오류:', e);
-    if (els.speakBtn) {
-      els.speakBtn.textContent = '🔊 듣기';
-      els.speakBtn.disabled = false;
-    }
-    showStatus('음성 재생 오류', 'error');
-  }
-}
-
-// 번역 복사
-function copyTranslation() {
-  if (!currentTranslation) return;
-  navigator.clipboard.writeText(currentTranslation).then(() => {
-    if (els.copyBtn) { 
-      const original = els.copyBtn.textContent; 
-      els.copyBtn.textContent = '✅ 복사됨'; 
-      setTimeout(() => els.copyBtn.textContent = original, 1500); 
-    }
-  }).catch((e) => { 
-    showStatus('복사 실패', 'error'); 
-  });
-}
-
-// 음성 번역
-function handleVoiceTranslate() {
-  if (!recognition) { 
-    showStatus('음성 인식 불가', 'error'); 
-    return; 
-  }
-  
-  if (isRecording) {
-    recognition.stop();
-  } else {
-    try {
-      recognition.lang = langCodeMap[els.sourceLangSelect ? els.sourceLangSelect.value : 'Korean'];
-      recognition.start();
-    } catch (e) { 
-      console.warn('음성 인식 시작 실패:', e); 
-      showStatus('음성 인식 시작 실패', 'error'); 
-    }
-  }
-}
-
-// 결과 지우기
-function clearResult() {
-  if (els.translation) els.translation.textContent = '번역 결과가 여기에 표시됩니다';
-  if (els.pronunciation) els.pronunciation.textContent = '발음 표기가 여기에 표시됩니다';
-  if (els.speakBtn) els.speakBtn.disabled = true;
-  if (els.copyBtn) els.copyBtn.disabled = true;
-  currentTranslation = '';
-  currentSource = '';
-  if (currentAudio) { 
-    currentAudio.pause(); 
-    currentAudio = null; 
-  }
-  speechSynthesis.cancel();
-}
-
-// 전체 지우기
-function clearAll() {
-  if (els.inputText) els.inputText.value = '';
-  clearResult();
-}
-
-// 발음 토글
-function togglePronunciation() {
-  const pronDiv = els.pronunciation;
-  const toggle = document.getElementById('pronToggle');
-  if (!pronDiv) return;
-  
-  if (pronDiv.style.display === 'none') { 
-    pronDiv.style.display = 'block'; 
-    if (toggle) toggle.textContent = '▼'; 
-  } else { 
-    pronDiv.style.display = 'none'; 
-    if (toggle) toggle.textContent = '▶'; 
-  }
-}
-
-// 초기화
+// ===== 초기화 =====
 document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   setupSpeechRecognition();
-  showStatus('Pro 버전 준비 완료 🚀', 'success');
+  showStatus('Pro 버전 준비 완료 - Enhanced 🚀', 'success');
 
   // 이벤트 리스너
   if (els.volumeControl) {
@@ -2001,30 +1876,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (els.globalSpeedControl) {
-    els.globalSpeedControl.addEventListener('input', (e) => {
-      const speed = e.target.value;
-      if (els.speedValue) els.speedValue.textContent = speed + 'x';
-      localStorage.setItem(STORAGE_KEYS.globalSpeed, speed);
-    });
-  }
-
-  if (els.vietnameseSpeed) {
-    els.vietnameseSpeed.addEventListener('input', (e) => {
-      const speed = e.target.value;
-      if (els.vietnameseSpeedValue) els.vietnameseSpeedValue.textContent = speed + 'x';
-      localStorage.setItem(STORAGE_KEYS.vietnameseSpeed, speed);
-    });
-  }
-
   if (els.voiceSelect) els.voiceSelect.addEventListener('change', saveSettings);
   if (els.sourceLangSelect) els.sourceLangSelect.addEventListener('change', () => {
-    updateVietnameseControlsVisibility();
     updateSpeakerLanguages();
     saveSettings();
   });
   if (els.targetLangSelect) els.targetLangSelect.addEventListener('change', () => {
-    updateVietnameseControlsVisibility();
     updateSpeakerLanguages();
     saveSettings();
   });
