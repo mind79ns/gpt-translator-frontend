@@ -1231,13 +1231,13 @@ async function handleConversationTranslation(text) {
 // 대화 음성 재생
 async function playConversationTranslation(text, language) {
   try {
-    const volume = parseFloat(els.volumeControl.value);
-    
+    const volume = parseFloat(els.volumeControl.value || 0.8);
     if (language === 'Vietnamese' && ('speechSynthesis' in window)) {
-      const success = speakWithBrowserTTS(text, 'vi-VN', null, volume);
-      if (success) return;
+      // await chunked browser TTS; if it returns true we've played via browser
+      const ok = await speakWithBrowserTTS(text, 'vi-VN', null, volume);
+      if (ok) return;
     }
-    
+
     const resp = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1248,19 +1248,20 @@ async function playConversationTranslation(text, language) {
         language: language
       })
     });
-    
+
     if (resp.ok) {
       const audioBlob = await resp.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
       audio.volume = volume;
       audio.play();
-      
+
       audio.onended = () => {
         URL.revokeObjectURL(audioUrl);
       };
     }
   } catch (error) {
+
     console.error('대화 음성 재생 오류:', error);
   }
 }
@@ -1364,19 +1365,20 @@ function setupSpeechRecognition() {
   
   recognition.onresult = (event) => {
     const transcript = event.results[0][0].transcript;
-    
-    if (conversationState.isActive) {
-      handleConversationTranslation(transcript);
-    } else {
-      if (els.inputText) els.inputText.value = transcript;
-      detectLanguage(transcript);
-      recognition.stop();
+    try {
+      // stop immediately to avoid overlapping recognition
+      try { recognition.stop(); } catch(e){}
       isRecording = false;
-      if (els.voiceBtn) { 
-        els.voiceBtn.classList.remove('recording'); 
-        if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
+      if (conversationState.isActive) {
+        handleConversationTranslation(transcript);
+      } else {
+        if (els.inputText) els.inputText.value = transcript;
+        detectLanguage(transcript);
+        if (els.voiceBtn) { els.voiceBtn.classList.remove('recording'); if (els.voiceText) els.voiceText.textContent = '음성 번역'; }
+        handleTranslate();
       }
-      handleTranslate();
+    } catch (e) {
+      console.warn('onresult handler error', e);
     }
   };
   
@@ -1399,11 +1401,19 @@ function setupSpeechRecognition() {
     }
   };
   
-  recognition.onend = () => { 
-    isRecording = false; 
-    if (!conversationState.isActive && els.voiceBtn) { 
-      els.voiceBtn.classList.remove('recording'); 
-      if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
+  recognition.onend = () => {
+    isRecording = false;
+    if (!conversationState.isActive && els.voiceBtn) {
+      els.voiceBtn.classList.remove('recording');
+      if (els.voiceText) els.voiceText.textContent = '음성 번역';
+    }
+    // If conversation auto recognition is enabled, restart after short delay
+    if (conversationState.isActive && conversationState.autoRecognition) {
+      setTimeout(() => {
+        try {
+          startAutoRecognition();
+        } catch(e) { console.warn('restart auto recognition failed', e); }
+      }, 300);
     }
   };
 }
@@ -1719,27 +1729,107 @@ function handleRealtimeTranslate() {
   }, 1000);
 }
 
-// 베트남어 TTS
-function speakWithBrowserTTS(text, lang = 'vi-VN', customRate = null, volume = 0.9) {
-  try {
-    if (!('speechSynthesis' in window)) return false;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    utterance.rate = customRate || (els.vietnameseSpeed ? parseFloat(els.vietnameseSpeed.value) : 0.9);
-    utterance.pitch = 1.1;
-    utterance.volume = volume;
-    
-    speechSynthesis.cancel();
-    speechSynthesis.speak(utterance);
-    
-    return true;
-  } catch (e) {
-    console.warn('베트남어 TTS 오류:', e);
-    return false;
-  }
+// ===== 개선된 브라우저 TTS 헬퍼 (문장 분절 + 음성 선택 + Promise 반환) =====
+function chooseBestVietnameseVoice() {
+  const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+  if (!voices || voices.length === 0) return null;
+  // 우선순위: 이름에 'Google' 또는 'WaveNet' 포함한 vi 음성 -> vi 음성 -> any vi-like -> fallback
+  let v = voices.find(x => x.name && (x.name.includes('Google') || x.name.includes('WaveNet')) && x.lang && x.lang.startsWith('vi'));
+  if (!v) v = voices.find(x => x.lang && x.lang.startsWith('vi'));
+  if (!v) v = voices.find(x => x.lang && x.lang.toLowerCase().startsWith('vi'));
+  return v || voices[0];
 }
 
+function splitForTTS(text, maxLen = 120) {
+  if (!text) return [];
+  // 먼저 문장부호 기준으로 자른 뒤, 길면 공백 기준으로 잘라서 청크 생성
+  const cand = text.split(/(?<=[\.\?\!]|…|\n)/g).map(s => s.trim()).filter(Boolean);
+  const out = [];
+  for (let part of cand) {
+    if (part.length <= maxLen) {
+      out.push(part);
+    } else {
+      while (part.length > maxLen) {
+        let cut = part.lastIndexOf(' ', maxLen);
+        if (cut <= 0) cut = maxLen;
+        out.push(part.slice(0, cut).trim());
+        part = part.slice(cut).trim();
+      }
+      if (part) out.push(part);
+    }
+  }
+  return out;
+}
+// 베트남어 TTS
+
+function speakWithBrowserTTS(text, lang = 'vi-VN', customRate = null, volume = 0.9) {
+  // 반환: Promise<boolean> — 성공 시 true, 실패 또는 브라우저 미지원 시 false
+  return new Promise((resolve) => {
+    try {
+      if (!('speechSynthesis' in window)) return resolve(false);
+
+      const rateFromUI = customRate || (els.vietnameseSpeed ? parseFloat(els.vietnameseSpeed.value) : (els.globalSpeedControl ? parseFloat(els.globalSpeedControl.value) : 1.0));
+      const pitch = 1.0;
+      const chunks = splitForTTS(text, 110);
+      if (!chunks.length) return resolve(false);
+
+      let voice = chooseBestVietnameseVoice();
+
+      // Ensure voices loaded
+      const startPlaying = () => {
+        speechSynthesis.cancel();
+        let idx = 0;
+        function playNext() {
+          if (idx >= chunks.length) {
+            return resolve(true);
+          }
+          const u = new SpeechSynthesisUtterance(chunks[idx]);
+          u.lang = lang;
+          u.rate = rateFromUI;
+          u.pitch = pitch;
+          u.volume = volume;
+          if (voice) u.voice = voice;
+          u.onend = () => {
+            idx++;
+            const pause = Math.min(300, 60 + Math.min(200, chunks[idx-1].length * 3));
+            setTimeout(playNext, pause);
+          };
+          u.onerror = () => {
+            idx++;
+            setTimeout(playNext, 150);
+          };
+          speechSynthesis.speak(u);
+        }
+        playNext();
+      };
+
+      const voices = speechSynthesis.getVoices();
+      if (!voices || voices.length === 0) {
+        // wait for voiceschanged
+        const onVoices = () => {
+          try {
+            speechSynthesis.removeEventListener('voiceschanged', onVoices);
+          } catch(e){/*ignore*/}
+          voice = chooseBestVietnameseVoice();
+          startPlaying();
+        };
+        speechSynthesis.addEventListener('voiceschanged', onVoices);
+        // fallback timeout: if voiceschanged doesn't fire, proceed after small delay
+        setTimeout(() => {
+          voice = chooseBestVietnameseVoice();
+          startPlaying();
+        }, 300);
+      } else {
+        voice = chooseBestVietnameseVoice();
+        startPlaying();
+      }
+    } catch (e) {
+      console.warn('browser tts error', e);
+      return resolve(false);
+    }
+  });
+}
 // 음성 재생
 async function handleSpeak() {
   if (!currentTranslation) return;
