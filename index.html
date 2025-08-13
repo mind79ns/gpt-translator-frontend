@@ -758,16 +758,6 @@
             .conversation-controls { flex-direction: column; }
         }
     </style>
-
-<style>
-@media (max-width: 600px) {
-  .control-group { width: 100%; }
-  button { min-height: 44px; font-size: 1.1em; }
-  select, input[type=range] { width: 100%; }
-}
-.control-group { margin: 5px 0; }
-</style>
-
 </head>
 <body>
     <div class="container">
@@ -783,12 +773,6 @@
                     <option value="Vietnamese">베트남어</option>
                     <option value="English">영어</option>
                 </select>
-
-
-
-
-
-
                 <button onclick="swapLanguages()">⇄</button>
                 <select id="targetLangSelect">
                     <option value="Vietnamese">베트남어</option>
@@ -2018,114 +2002,6 @@ window.replayMessage = replayMessage;
 window.copyMessage = copyMessage;
 
 console.log('✅ 양방향 번역기 v3.0 - 모든 기능 정상 작동');
-</script>
-
-
-<canvas id="waveformCanvas" width="300" height="60" style="display:none; background:#111;"></canvas>
-
-
-<script>
-// Bind slider displays
-document.addEventListener('DOMContentLoaded', () => {
-  const rateSlider = document.getElementById('rateSlider');
-  const pitchSlider = document.getElementById('pitchSlider');
-  const volumeSlider = document.getElementById('volumeSlider');
-  if(rateSlider) rateSlider.addEventListener('input', e => document.getElementById('rateValue').textContent = e.target.value);
-  if(pitchSlider) pitchSlider.addEventListener('input', e => document.getElementById('pitchValue').textContent = e.target.value);
-  if(volumeSlider) volumeSlider.addEventListener('input', e => document.getElementById('volumeValue').textContent = e.target.value);
-});
-
-// Override/extend playChunkedAudio or speak request to include rate/pitch/volume/style
-function getVoiceParams() {
-  const rate = parseFloat(document.getElementById('rateSlider')?.value || 1.0);
-  const pitch = parseFloat(document.getElementById('pitchSlider')?.value || 0.8);
-  const volume = parseInt(document.getElementById('volumeSlider')?.value || 0);
-  const style = document.getElementById('styleSelect')?.value || 'formal';
-  return { speakingRate: rate, pitch: pitch, volumeGainDb: volume, style: style };
-}
-
-// Example: modify sendSpeakRequest or equivalent fetch to append ...getVoiceParams()
-// This assumes speak API in translate.js can handle these extra fields.
-</script>
-
-
-<script>
-// Simple waveform animation for speech
-function showWaveform() {
-  const canvas = document.getElementById('waveformCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  canvas.style.display = 'block';
-  let t = 0;
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.beginPath();
-    for (let x = 0; x < canvas.width; x++) {
-      const y = 30 + Math.sin((x + t) / 10) * 20;
-      ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = '#0f0';
-    ctx.stroke();
-    t += 2;
-    if (canvas.style.display !== 'none') requestAnimationFrame(draw);
-  }
-  draw();
-}
-function hideWaveform() {
-  const canvas = document.getElementById('waveformCanvas');
-  if (canvas) canvas.style.display = 'none';
-}
-</script>
-
-
-<button id="toggleSettings" style="position:absolute; top:10px; right:10px; z-index:1000;">⚙ 설정</button>
-<div id="settingsPanel" style="display:none; position:fixed; top:50px; right:10px; background:#fff; border:1px solid #ccc; padding:15px; border-radius:8px; z-index:1000; max-width:300px; overflow-y:auto;">
-  <h3>설정</h3>
-  <div class="control-group">
-    <label for="styleSelect">번역 스타일:</label>
-    <select id="styleSelect">
-      <option value="formal">격식체</option>
-      <option value="informal">반말체</option>
-      <option value="business">비즈니스</option>
-      <option value="casual">일상회화</option>
-    </select>
-  </div>
-  <div class="control-group">
-    <label for="rateSlider">속도: <span id="rateValue">1.0</span></label>
-    <input type="range" id="rateSlider" min="0.5" max="2.0" step="0.1" value="1.0">
-  </div>
-  <div class="control-group">
-    <label for="pitchSlider">피치: <span id="pitchValue">0.8</span></label>
-    <input type="range" id="pitchSlider" min="0" max="2.0" step="0.1" value="0.8">
-  </div>
-  <div class="control-group">
-    <label for="volumeSlider">볼륨 (dB): <span id="volumeValue">0</span></label>
-    <input type="range" id="volumeSlider" min="0" max="10" step="1" value="0">
-  </div>
-</div>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const settingsBtn = document.getElementById('toggleSettings');
-  const settingsPanel = document.getElementById('settingsPanel');
-  settingsBtn.addEventListener('click', () => {
-    settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
-  });
-
-  const rateSlider = document.getElementById('rateSlider');
-  const pitchSlider = document.getElementById('pitchSlider');
-  const volumeSlider = document.getElementById('volumeSlider');
-  if(rateSlider) rateSlider.addEventListener('input', e => document.getElementById('rateValue').textContent = e.target.value);
-  if(pitchSlider) pitchSlider.addEventListener('input', e => document.getElementById('pitchValue').textContent = e.target.value);
-  if(volumeSlider) volumeSlider.addEventListener('input', e => document.getElementById('volumeValue').textContent = e.target.value);
-});
-
-function getVoiceParams() {
-  const rate = parseFloat(document.getElementById('rateSlider')?.value || 1.0);
-  const pitch = parseFloat(document.getElementById('pitchSlider')?.value || 0.8);
-  const volume = parseInt(document.getElementById('volumeSlider')?.value || 0);
-  const style = document.getElementById('styleSelect')?.value || 'formal';
-  return { speakingRate: rate, pitch: pitch, volumeGainDb: volume, style: style };
-}
 </script>
 
 </body>
