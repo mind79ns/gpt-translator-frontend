@@ -1015,33 +1015,134 @@ const langCodeMap = {
   'English': 'en-US'
 };
 
-// ===== 오디오 큐 시스템 =====
+// index.html의 <script> 태그 내 오디오 관련 함수들을 다음으로 교체
+
+// ===== 완전 개선된 오디오 시스템 =====
 const audioQueue = [];
 let isQueuePlaying = false;
+let audioContext = null;
+let masterGainNode = null;
 
-function playAudioBlob(blob) {
-  const audioUrl = URL.createObjectURL(blob);
-  const audio = new Audio(audioUrl);
-  audio.volume = parseFloat(els.volumeControl?.value || 0.8);
+// AudioContext 초기화 (최초 1회)
+function initAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    masterGainNode = audioContext.createGain();
+    masterGainNode.connect(audioContext.destination);
+    
+    // 기본 볼륨 설정 (베트남어용 부스트)
+    masterGainNode.gain.value = 2.0;
+    
+    console.log('AudioContext 초기화 완료');
+  }
   
-  audio.onended = () => {
-    URL.revokeObjectURL(audioUrl);
-    playNextInQueue();
-  };
-  
-  audio.onerror = () => {
-    console.error('오디오 재생 실패');
-    playNextInQueue();
-  };
-  
-  audio.play().catch(e => {
-    console.error('재생 오류:', e);
-    playNextInQueue();
-  });
+  // 모바일/Safari 대응
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
 }
 
-function queueAudioBlob(blob) {
-  audioQueue.push(blob);
+// 페이지 로드 시 즉시 초기화 시도
+document.addEventListener('DOMContentLoaded', () => {
+  // 자동 초기화 (사용자 인터랙션 없이)
+  try {
+    initAudioContext();
+  } catch (e) {
+    console.log('AudioContext 자동 초기화 실패, 첫 클릭 대기');
+  }
+});
+
+// 첫 클릭/터치 시 AudioContext 활성화 (모바일용)
+document.addEventListener('click', () => {
+  initAudioContext();
+}, { once: true });
+
+document.addEventListener('touchstart', () => {
+  initAudioContext();
+}, { once: true });
+
+// 프리로드 + 볼륨 부스트 재생
+async function playAudioBlob(blob, isVietnamese = false) {
+  try {
+    // AudioContext 보장
+    initAudioContext();
+    
+    // ArrayBuffer로 변환
+    const arrayBuffer = await blob.arrayBuffer();
+    
+    // 오디오 디코딩
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    
+    // 소스 노드 생성
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    
+    // 개별 Gain 노드 (언어별 볼륨 조정)
+    const gainNode = audioContext.createGain();
+    
+    // 사용자 볼륨 가져오기
+    const userVolume = parseFloat(els.volumeControl?.value || 0.8);
+    
+    // 베트남어는 추가 부스트
+    if (isVietnamese) {
+      gainNode.gain.value = userVolume * 3.0; // 3배 증폭
+    } else {
+      gainNode.gain.value = userVolume * 1.5; // 1.5배 증폭
+    }
+    
+    // 페이드인 효과 (부드러운 시작)
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(
+      gainNode.gain.value, 
+      audioContext.currentTime + 0.1
+    );
+    
+    // 연결
+    source.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // 종료 처리
+    source.onended = () => {
+      console.log('오디오 재생 완료');
+      playNextInQueue();
+    };
+    
+    // 즉시 재생
+    source.start(0);
+    console.log('오디오 재생 시작 (Web Audio API)');
+    
+  } catch (error) {
+    console.error('Web Audio API 실패, HTML Audio 폴백:', error);
+    
+    // 폴백: 전통적인 Audio 객체
+    const audioUrl = URL.createObjectURL(blob);
+    const audio = new Audio(audioUrl);
+    
+    // 프리로드 설정
+    audio.preload = 'auto';
+    
+    // 볼륨 최대화
+    const userVolume = parseFloat(els.volumeControl?.value || 0.8);
+    audio.volume = Math.min(1.0, userVolume * 1.5);
+    
+    // 로드 완료 후 재생
+    audio.addEventListener('canplaythrough', () => {
+      audio.play().catch(e => console.error('재생 실패:', e));
+    }, { once: true });
+    
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      playNextInQueue();
+    };
+    
+    // 로드 시작
+    audio.load();
+  }
+}
+
+// 큐 시스템
+function queueAudioBlob(blob, isVietnamese = false) {
+  audioQueue.push({ blob, isVietnamese });
   if (!isQueuePlaying) {
     playNextInQueue();
   }
@@ -1054,230 +1155,142 @@ function playNextInQueue() {
   }
   
   isQueuePlaying = true;
-  const blob = audioQueue.shift();
-  playAudioBlob(blob);
+  const { blob, isVietnamese } = audioQueue.shift();
+  playAudioBlob(blob, isVietnamese);
 }
 
-// ===== 개선된 음성 인식 =====
-function setupSpeechRecognition() {
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    if (els.voiceBtn) els.voiceBtn.disabled = true;
+// 개선된 청크 재생 (병렬 로딩)
+async function playChunkedAudio(chunks, language) {
+  const isVietnamese = language === 'Vietnamese';
+  const voice = els.voiceSelect?.value || 'alloy';
+  
+  showStatus('🎵 오디오 준비 중...', 'info');
+  
+  // 첫 청크는 즉시 요청
+  const firstChunkPromise = fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'speak',
+      inputText: chunks[0],
+      voice: voice,
+      language: language,
+      useGoogleTTS: isVietnamese
+    })
+  });
+  
+  // 나머지 청크들 병렬 요청
+  const otherChunksPromises = chunks.slice(1).map(chunk => 
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'speak',
+        inputText: chunk,
+        voice: voice,
+        language: language,
+        useGoogleTTS: isVietnamese
+      })
+    })
+  );
+  
+  // 첫 청크 우선 처리
+  try {
+    const firstResp = await firstChunkPromise;
+    if (firstResp.ok) {
+      const firstBlob = await firstResp.blob();
+      queueAudioBlob(firstBlob, isVietnamese);
+      showStatus('🔊 재생 중...', 'success');
+    }
+  } catch (e) {
+    console.error('첫 청크 로드 실패:', e);
+  }
+  
+  // 나머지 청크들 순차 처리
+  for (const promise of otherChunksPromises) {
+    try {
+      const resp = await promise;
+      if (resp.ok) {
+        const blob = await resp.blob();
+        queueAudioBlob(blob, isVietnamese);
+      }
+    } catch (e) {
+      console.error('청크 로드 실패:', e);
+    }
+  }
+}
+
+// handleSpeak 함수 개선
+async function handleSpeak() {
+  if (!currentTranslation) return;
+  
+  // 기존 재생 중지
+  if (currentAudio && !currentAudio.paused) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+  
+  if (els.speakBtn && els.speakBtn.textContent.includes('⏸️')) {
+    els.speakBtn.textContent = '🔊 듣기';
     return;
   }
   
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.continuous = false;
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 3;
-  
-  let finalTranscript = '';
-  let silenceTimer = null;
-  
-  recognition.onstart = () => { 
-    isRecording = true;
-    finalTranscript = '';
-    
-    if (!conversationState.isActive && els.voiceBtn) {
-      els.voiceBtn.classList.add('recording'); 
-      if (els.voiceText) els.voiceText.textContent = '듣는 중...'; 
-    }
-    
-    if (conversationState.isActive) {
-      showStatus('🎤 듣는 중...', 'info');
-    }
-  };
-  
-  recognition.onresult = (event) => {
-    let interimTranscript = '';
-    
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const transcript = event.results[i][0].transcript;
-      
-      if (event.results[i].isFinal) {
-        finalTranscript += transcript + ' ';
-        
-        if (silenceTimer) clearTimeout(silenceTimer);
-        
-        // 대화 모드: 1.5초 침묵 후 자동 종료
-        if (conversationState.isActive) {
-          silenceTimer = setTimeout(() => {
-            recognition.stop();
-          }, 1500);
-        }
-      } else {
-        interimTranscript += transcript;
-      }
-    }
-    
-    // 일반 모드: 중간 결과 표시
-    if (!conversationState.isActive && els.inputText) {
-      els.inputText.value = finalTranscript + interimTranscript;
-    }
-  };
-  
-  recognition.onerror = (e) => { 
-    console.warn('음성 인식 오류:', e);
-    isRecording = false;
-    
-    if (!conversationState.isActive) {
-      if (els.voiceBtn) { 
-        els.voiceBtn.classList.remove('recording'); 
-        if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
-      }
-    }
-    
-    if (conversationState.isActive && conversationState.autoRecognition) {
-      setTimeout(() => startAutoRecognition(), 2000);
-    }
-  };
-  
-  recognition.onend = () => { 
-    isRecording = false;
-    if (silenceTimer) clearTimeout(silenceTimer);
-    
-    const transcript = finalTranscript.trim();
-    
-    if (!conversationState.isActive) {
-      if (els.voiceBtn) { 
-        els.voiceBtn.classList.remove('recording'); 
-        if (els.voiceText) els.voiceText.textContent = '음성 번역'; 
-      }
-      
-      if (transcript) {
-        if (els.inputText) els.inputText.value = transcript;
-        detectLanguage(transcript);
-        handleTranslate();
-      }
-    } else if (conversationState.isActive) {
-      if (transcript) {
-        handleConversationTranslation(transcript);
-      } else {
-        setTimeout(() => startAutoRecognition(), 500);
-      }
-    }
-  };
-}
-
-// ===== 대화 모드 함수들 =====
-function switchToNormalMode() {
-  if (conversationState.isActive) {
-    stopConversation();
+  if (els.speakBtn) {
+    els.speakBtn.textContent = '⏳ 로딩...';
+    els.speakBtn.disabled = true;
   }
-  
-  els.normalModeBtn.classList.add('active');
-  els.conversationModeBtn.classList.remove('active');
-  els.normalMode.classList.remove('hidden');
-  els.conversationMode.classList.remove('active');
-  
-  showStatus('일반 번역 모드', 'success');
-}
 
-function switchToConversationMode() {
-  els.conversationModeBtn.classList.add('active');
-  els.normalModeBtn.classList.remove('active');
-  els.normalMode.classList.add('hidden');
-  els.conversationMode.classList.add('active');
-  
-  updateSpeakerLanguages();
-  showStatus('대화 모드 - 실시간 양방향 번역', 'success');
-}
-
-function updateSpeakerLanguages() {
-  if (els.speakerLangA && els.speakerLangB) {
-    const sourceLang = els.sourceLangSelect.value;
-    const targetLang = els.targetLangSelect.value;
-    
-    els.speakerLangA.textContent = sourceLang === 'Korean' ? '한국어' : 
-                                   sourceLang === 'Vietnamese' ? '베트남어' : '영어';
-    els.speakerLangB.textContent = targetLang === 'Korean' ? '한국어' : 
-                                   targetLang === 'Vietnamese' ? '베트남어' : '영어';
-  }
-}
-
-function updateActiveSpeaker() {
-  if (conversationState.currentSpeaker === 'A') {
-    els.speakerCardA.classList.add('active');
-    els.speakerCardB.classList.remove('active');
-  } else {
-    els.speakerCardA.classList.remove('active');
-    els.speakerCardB.classList.add('active');
-  }
-}
-
-function switchSpeaker() {
-  conversationState.currentSpeaker = conversationState.currentSpeaker === 'A' ? 'B' : 'A';
-  updateActiveSpeaker();
-}
-
-function startConversation() {
-  conversationState.isActive = true;
-  conversationState.currentSpeaker = 'A';
-  conversationState.autoRecognition = true;
-  
-  els.startConversationBtn.disabled = true;
-  els.stopConversationBtn.disabled = false;
-  
-  updateActiveSpeaker();
-  showStatus('대화 시작 - 화자 A가 말하세요', 'success');
-  
-  startAutoRecognition();
-}
-
-function stopConversation() {
-  conversationState.isActive = false;
-  conversationState.autoRecognition = false;
-  
-  if (recognition && isRecording) {
-    recognition.stop();
-  }
-  
-  els.startConversationBtn.disabled = false;
-  els.stopConversationBtn.disabled = true;
-  
-  els.speakerCardA.classList.remove('active');
-  els.speakerCardB.classList.remove('active');
-  
-  showStatus('대화 종료', 'warning');
-}
-
-function clearConversation() {
-  if (confirm('대화 내용을 모두 지우시겠습니까?')) {
-    conversationState.messages = [];
-    localStorage.removeItem(STORAGE_KEYS.conversationHistory);
-    updateConversationHistory();
-    showStatus('대화 내용이 삭제되었습니다', 'success');
-  }
-}
-
-async function startAutoRecognition() {
-  if (!conversationState.autoRecognition || !recognition) return;
-  
   try {
-    const currentLang = conversationState.currentSpeaker === 'A' ? 
-                       els.sourceLangSelect.value : els.targetLangSelect.value;
+    // AudioContext 미리 초기화
+    initAudioContext();
     
-    recognition.lang = langCodeMap[currentLang];
+    const targetLang = els.targetLangSelect ? els.targetLangSelect.value : 'Vietnamese';
+    const isVietnamese = targetLang === 'Vietnamese';
     
-    const speakerName = conversationState.currentSpeaker === 'A' ? '화자 A' : '화자 B';
-    const langName = currentLang === 'Korean' ? '한국어' : 
-                    currentLang === 'Vietnamese' ? '베트남어' : '영어';
-    showStatus(`🎤 ${speakerName} 차례 - ${langName}로 말씀해주세요`, 'info');
-    
-    setTimeout(() => {
-      recognition.start();
-    }, 300);
-    
-  } catch (e) {
-    console.warn('음성 인식 시작 실패:', e);
-    setTimeout(() => {
-      if (conversationState.autoRecognition) {
-        startAutoRecognition();
+    if (currentChunks && currentChunks.length > 0) {
+      // 청크 방식
+      await playChunkedAudio(currentChunks, targetLang);
+    } else {
+      // 단일 요청
+      showStatus('🎵 오디오 준비 중...', 'info');
+      
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'speak',
+          inputText: currentTranslation,
+          voice: els.voiceSelect?.value || 'alloy',
+          language: targetLang,
+          useGoogleTTS: isVietnamese
+        })
+      });
+      
+      if (resp.ok) {
+        const blob = await resp.blob();
+        showStatus('🔊 재생 중...', 'success');
+        playAudioBlob(blob, isVietnamese);
+      } else {
+        throw new Error('오디오 요청 실패');
       }
-    }, 1000);
+    }
+    
+    if (els.speakBtn) {
+      els.speakBtn.textContent = '🔊 듣기';
+      els.speakBtn.disabled = false;
+    }
+
+  } catch (e) {
+    console.error('handleSpeak 오류:', e);
+    if (els.speakBtn) {
+      els.speakBtn.textContent = '🔊 듣기';
+      els.speakBtn.disabled = false;
+    }
+    showStatus('음성 재생 오류: ' + e.message, 'error');
   }
 }
 
+// 대화 모드 오디오 처리도 개선
 async function handleConversationTranslation(text) {
   const currentSpeaker = conversationState.currentSpeaker;
   const isReverseTranslation = currentSpeaker === 'B';
@@ -1288,6 +1301,9 @@ async function handleConversationTranslation(text) {
   showStatus('번역 중...', 'info');
   
   try {
+    // AudioContext 미리 초기화
+    initAudioContext();
+    
     const resp = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1341,6 +1357,9 @@ async function handleConversationTranslation(text) {
     }, 2000);
   }
 }
+
+console.log('오디오 시스템 v2.0 로드 완료');
+
 
 async function playChunkedAudio(chunks, language) {
   const useGoogleTTS = language === 'Vietnamese';
