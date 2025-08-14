@@ -2004,39 +2004,5 @@ window.copyMessage = copyMessage;
 console.log('✅ 양방향 번역기 v3.0 - 모든 기능 정상 작동');
 </script>
 
-
-<!-- API Key Input Modal -->
-<div id="apiKeyModal" class="modal" style="display:none;">
-  <div class="modal-content" style="max-width:500px;margin:auto;padding:20px;border-radius:8px;background:#fff;">
-    <h2>API 키 설정</h2>
-    <label for="openaiKey">OpenAI API Key:</label>
-    <input type="password" id="openaiKey" placeholder="sk-..." style="width:100%;padding:8px;margin-bottom:10px;">
-    <label for="googleKey">Google Cloud Service Account JSON:</label>
-    <textarea id="googleKey" placeholder='{"type": "service_account", ...}' style="width:100%;height:120px;padding:8px;"></textarea>
-    <div style="text-align:right;margin-top:15px;">
-      <button id="saveKeysBtn" style="padding:8px 15px;">저장</button>
-    </div>
-  </div>
-</div>
-<style>
-.modal {
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  background-color: rgba(0,0,0,0.4);
-}
-.modal-content {
-  animation: fadeIn 0.3s ease-in-out;
-}
-@keyframes fadeIn {
-  from {opacity: 0; transform: translateY(-10px);}
-  to {opacity: 1; transform: translateY(0);}
-}
-</style>
-
 </body>
 </html>
