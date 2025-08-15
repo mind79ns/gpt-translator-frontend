@@ -84,6 +84,22 @@
         .style-btn { padding: 8px; border: 2px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 11px; text-align: center; transition: all 0.3s; }
         .style-btn.active { border-color: var(--ai-purple); background: rgba(139, 92, 246, 0.1); color: var(--ai-purple); }
         
+        /* 전문용어 사전 스타일 */
+        .terminology-section { margin-top: 10px; }
+        .terminology-input-group { display: flex; gap: 8px; margin-bottom: 10px; }
+        .terminology-input-single { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
+        .terminology-add-btn { background: var(--primary); color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 12px; }
+        .terminology-add-btn:hover { background: var(--secondary); }
+        .terminology-list { max-height: 120px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px; }
+        .terminology-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--card-bg); border-radius: 6px; margin-bottom: 5px; }
+        .terminology-item:last-child { margin-bottom: 0; }
+        .terminology-text { flex: 1; font-size: 12px; }
+        .terminology-original { font-weight: bold; color: var(--text); }
+        .terminology-arrow { color: var(--text-secondary); margin: 0 8px; }
+        .terminology-translated { color: var(--primary); }
+        .terminology-remove { background: var(--error); color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; }
+        .terminology-remove:hover { background: #dc3545; }
+        
         /* 고급 단어장 스타일 */
         .vocabulary-section { margin-top: 15px; }
         .vocabulary-tabs { display: flex; gap: 5px; margin-bottom: 10px; }
@@ -280,13 +296,7 @@
                 <div class="ai-settings-section" id="aiSettingsSection">
                     <div class="ai-settings-title">🧠 AI 문맥 번역 고도화</div>
                     
-                    <div class="setting-item">
-                        <label class="setting-label">문맥 활용 길이<small>이전 번역 기록을 참고할 문장 수</small></label>
-                        <div class="setting-control">
-                            <input type="range" id="contextLength" min="0" max="10" value="3" step="1">
-                            <span class="setting-value" id="contextLengthValue">3문장</span>
-                        </div>
-                    </div>
+
 
                     <div class="setting-item">
                         <label class="setting-label">번역 품질 vs 속도<small>높을수록 정확하지만 느림</small></label>
@@ -305,6 +315,17 @@
                             <div class="style-btn" data-style="formal">격식체</div>
                             <div class="style-btn" data-style="casual">친근체</div>
                             <div class="style-btn" data-style="literal">직역체</div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <label class="setting-label">🔧 전문용어 사전<small>일관된 번역을 위한 용어집 관리</small></label>
+                        <div class="terminology-section">
+                            <div class="terminology-input-group">
+                                <input type="text" class="terminology-input-single" id="terminologyInput" placeholder="용어 등록: AI | 인공지능">
+                                <button onclick="addTerminology()" class="terminology-add-btn">➕</button>
+                            </div>
+                            <div class="terminology-list" id="terminologyList"></div>
                         </div>
                     </div>
 
@@ -549,7 +570,6 @@ const API_URL = 'https://knstranslator.netlify.app/.netlify/functions/translate'
 let aiContextMode = false;
 let translationContext = [];
 let currentTranslationStyle = 'balanced';
-let contextLength = 3;
 let qualityLevel = 3;
 
 // 고급 단어장 시스템 - 초기화
@@ -569,7 +589,9 @@ let practiceState = {
     active: false,
     currentWord: null,
     isRecording: false,
-    practiceTime: 0
+    practiceTime: 0,
+    lastRecording: null,
+    recordingStartTime: null
 };
 let vocabularyStats = {
     totalWords: 0,
@@ -579,7 +601,7 @@ let vocabularyStats = {
 };
 
 // DOM 요소들
-const els={inputText:document.getElementById("inputText"),translation:document.getElementById("translation"),pronunciationContent:document.getElementById("pronunciation-content"),pronunciationSection:document.getElementById("pronunciationSection"),pronToggleIcon:document.getElementById("pronToggleIcon"),status:document.getElementById("status"),voiceBtn:document.getElementById("voiceBtn"),speakBtn:document.getElementById("speakBtn"),copyBtn:document.getElementById("copyBtn"),sourceLangSelect:document.getElementById("sourceLangSelect"),targetLangSelect:document.getElementById("targetLangSelect"),voiceSelect:document.getElementById("voiceSelect"),googleVoiceSelect:document.getElementById("googleVoiceSelect"),autoDetectBadge:document.getElementById("autoDetectBadge"),settingsPanel:document.getElementById("settingsPanel"),normalMode:document.getElementById("normalMode"),conversationMode:document.getElementById("conversationMode"),normalModeBtn:document.getElementById("normalModeBtn"),conversationModeBtn:document.getElementById("conversationModeBtn"),speakerCardA:document.getElementById("speakerCardA"),speakerCardB:document.getElementById("speakerCardB"),speakerLangA:document.getElementById("speakerLangA"),speakerLangB:document.getElementById("speakerLangB"),startConversationBtn:document.getElementById("startConversationBtn"),stopConversationBtn:document.getElementById("stopConversationBtn"),conversationHistory:document.getElementById("conversationHistory"),ttsEngineMode:document.getElementById("ttsEngineMode"),cacheIndicator:document.getElementById("cacheIndicator"),engineIndicator:document.getElementById("engineIndicator"),recentPlays:document.getElementById("recentPlays"),recentPlayList:document.getElementById("recentPlayList"),dashboardModal:document.getElementById("dashboardModal"),historyModal:document.getElementById("historyModal"),historyList:document.getElementById("historyList"),todayTranslations:document.getElementById("todayTranslations"),totalTranslations:document.getElementById("totalTranslations"),cacheHitRate:document.getElementById("cacheHitRate"),autoModeSettings:document.getElementById("autoModeSettings"),autoThreshold:document.getElementById("autoThreshold"),thresholdValue:document.getElementById("thresholdValue"),volumeControl:document.getElementById("volumeControl"),volumeValue:document.getElementById("volumeValue"),pronunciationToggle:document.getElementById("pronunciationToggle"),aiToggle:document.getElementById("aiToggle"),aiContextBadge:document.getElementById("aiContextBadge"),aiIndicator:document.getElementById("aiIndicator"),translateBtn:document.getElementById("translateBtn"),translateBtnText:document.getElementById("translateBtnText"),contextPreview:document.getElementById("contextPreview"),contextContent:document.getElementById("contextContent"),contextLength:document.getElementById("contextLength"),contextLengthValue:document.getElementById("contextLengthValue"),qualitySlider:document.getElementById("qualitySlider"),aiSettingsSection:document.getElementById("aiSettingsSection"),vocabularyOriginal:document.getElementById("vocabularyOriginal"),vocabularyTranslation:document.getElementById("vocabularyTranslation"),vocabularyDescription:document.getElementById("vocabularyDescription"),vocabularyList:document.getElementById("vocabularyList"),vocabularyStats:document.getElementById("vocabularyStats"),wordDetailModal:document.getElementById("wordDetailModal"),quizModal:document.getElementById("quizModal"),practiceModal:document.getElementById("practiceModal")};
+const els={inputText:document.getElementById("inputText"),translation:document.getElementById("translation"),pronunciationContent:document.getElementById("pronunciation-content"),pronunciationSection:document.getElementById("pronunciationSection"),pronToggleIcon:document.getElementById("pronToggleIcon"),status:document.getElementById("status"),voiceBtn:document.getElementById("voiceBtn"),speakBtn:document.getElementById("speakBtn"),copyBtn:document.getElementById("copyBtn"),sourceLangSelect:document.getElementById("sourceLangSelect"),targetLangSelect:document.getElementById("targetLangSelect"),voiceSelect:document.getElementById("voiceSelect"),googleVoiceSelect:document.getElementById("googleVoiceSelect"),autoDetectBadge:document.getElementById("autoDetectBadge"),settingsPanel:document.getElementById("settingsPanel"),normalMode:document.getElementById("normalMode"),conversationMode:document.getElementById("conversationMode"),normalModeBtn:document.getElementById("normalModeBtn"),conversationModeBtn:document.getElementById("conversationModeBtn"),speakerCardA:document.getElementById("speakerCardA"),speakerCardB:document.getElementById("speakerCardB"),speakerLangA:document.getElementById("speakerLangA"),speakerLangB:document.getElementById("speakerLangB"),startConversationBtn:document.getElementById("startConversationBtn"),stopConversationBtn:document.getElementById("stopConversationBtn"),conversationHistory:document.getElementById("conversationHistory"),ttsEngineMode:document.getElementById("ttsEngineMode"),cacheIndicator:document.getElementById("cacheIndicator"),engineIndicator:document.getElementById("engineIndicator"),recentPlays:document.getElementById("recentPlays"),recentPlayList:document.getElementById("recentPlayList"),dashboardModal:document.getElementById("dashboardModal"),historyModal:document.getElementById("historyModal"),historyList:document.getElementById("historyList"),todayTranslations:document.getElementById("todayTranslations"),totalTranslations:document.getElementById("totalTranslations"),cacheHitRate:document.getElementById("cacheHitRate"),autoModeSettings:document.getElementById("autoModeSettings"),autoThreshold:document.getElementById("autoThreshold"),thresholdValue:document.getElementById("thresholdValue"),volumeControl:document.getElementById("volumeControl"),volumeValue:document.getElementById("volumeValue"),pronunciationToggle:document.getElementById("pronunciationToggle"),aiToggle:document.getElementById("aiToggle"),aiContextBadge:document.getElementById("aiContextBadge"),aiIndicator:document.getElementById("aiIndicator"),translateBtn:document.getElementById("translateBtn"),translateBtnText:document.getElementById("translateBtnText"),contextPreview:document.getElementById("contextPreview"),contextContent:document.getElementById("contextContent"),qualitySlider:document.getElementById("qualitySlider"),aiSettingsSection:document.getElementById("aiSettingsSection"),vocabularyOriginal:document.getElementById("vocabularyOriginal"),vocabularyTranslation:document.getElementById("vocabularyTranslation"),vocabularyDescription:document.getElementById("vocabularyDescription"),vocabularyList:document.getElementById("vocabularyList"),vocabularyStats:document.getElementById("vocabularyStats"),wordDetailModal:document.getElementById("wordDetailModal"),quizModal:document.getElementById("quizModal"),practiceModal:document.getElementById("practiceModal")};
 
 // 사용량 추적기
 const usageTracker={data:{daily:{},monthly:{},costs:{translation:.000015,openaiTTS:.000015,googleTTS:0}},initialize(){const e=localStorage.getItem("usageData");e&&(this.data={...this.data,...JSON.parse(e)}),this.cleanOldData()},cleanOldData(){const e=Date.now()-2592e6;Object.keys(this.data.daily).forEach(t=>{new Date(t).getTime()<e&&delete this.data.daily[t]})},track(e,t,a="google"){const s=(new Date).toISOString().split("T")[0],i=s.substring(0,7);this.data.daily[s]||(this.data.daily[s]={translations:0,characters:0,cost:0,saved:0}),this.data.monthly[i]||(this.data.monthly[i]={translations:0,characters:0,cost:0,saved:0});const o=this.data.daily[s],r=this.data.monthly[i];"translation"===e?(o.translations++,r.translations++,o.characters+=t,r.characters+=t,o.cost+=t*this.data.costs.translation,r.cost+=t*this.data.costs.translation):"tts"===e&&("openai"===a?(o.cost+=t*this.data.costs.openaiTTS,r.cost+=t*this.data.costs.openaiTTS):(o.saved+=t*this.data.costs.openaiTTS,r.saved+=t*this.data.costs.openaiTTS)),this.save(),this.updateDisplay(),this.checkLimits()},save(){localStorage.setItem("usageData",JSON.stringify(this.data))},updateDisplay(){const e=(new Date).toISOString().split("T")[0],t=e.substring(0,7),a=this.data.daily[e]||{translations:0,cost:0,saved:0},s=this.data.monthly[t]||{translations:0,cost:0,saved:0};document.getElementById("todayUsage").textContent=a.translations,document.getElementById("monthUsage").textContent=s.translations,document.getElementById("todayCost").textContent=`$${a.cost.toFixed(4)}`,document.getElementById("savedCost").textContent=`$${s.saved.toFixed(4)}`,this.updateChart(),this.updateBudgetProgress()},updateChart(){const e=document.getElementById("weeklyChart");if(!e)return;const t=Array.from({length:7},(...[,e])=>(new Date(Date.now()-864e5*e)).toISOString().split("T")[0]).reverse(),a=Math.max(...t.map(e=>this.data.daily[e]?.translations||0),1);e.innerHTML=t.map(e=>{const t=this.data.daily[e]?.translations||0,s=t/a*100,i=(new Date(e)).toLocaleDateString("ko-KR",{weekday:"short"});return`<div class="bar" style="height: ${s}%"><span class="bar-value">${t}</span><span class="bar-label">${i}</span></div>`}).join("")},updateBudgetProgress(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1,s=Math.min(t/a*100,100);document.getElementById("budgetProgress").style.width=s+"%",document.getElementById("budgetPercentage").textContent=`${s.toFixed(1)}% 사용`},checkLimits(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1;t>=a?("switch"===(document.getElementById("limitAction")?.value)?(els.ttsEngineMode.value="google",showStatus("⚠️ 예산 도달 - Google TTS로 전환","warning")):"warn"===document.getElementById("limitAction")?.value?showStatus("⚠️ 일일 예산을 초과했습니다","warning"):"block"===document.getElementById("limitAction")?.value&&(window.budgetExceeded=!0,showStatus("⛔ 예산 초과 - 유료 기능 제한","error"))):window.budgetExceeded=!1}};
@@ -591,7 +613,74 @@ let currentTranslation="",currentSource="",recognition=null,isRecording=!1,isPro
 const conversationState={isActive:!1,currentSpeaker:"A",messages:[],autoRecognition:!1},langCodeMap={Korean:"ko-KR",Vietnamese:"vi-VN",English:"en-US"};
 let audioContext=null;const audioQueue=[];let isQueuePlaying=!1;
 
-// ✅ 단어장 시스템 함수들 정의
+// ✅ 전문용어 관리 함수들 (간소화된 UI)
+function addTerminology() {
+    const input = document.getElementById('terminologyInput').value.trim();
+    
+    if (!input) {
+        showStatus("용어를 입력해주세요 (예: AI | 인공지능)", "warning");
+        return;
+    }
+    
+    // 파이프(|)로 분리
+    const parts = input.split('|').map(part => part.trim());
+    
+    if (parts.length !== 2) {
+        showStatus("올바른 형식으로 입력하세요: 원어 | 번역어", "warning");
+        return;
+    }
+    
+    const [original, translation] = parts;
+    
+    if (!original || !translation) {
+        showStatus("원어와 번역어를 모두 입력해주세요", "warning");
+        return;
+    }
+    
+    if (terminologyDict.has(original)) {
+        showStatus("이미 등록된 용어입니다", "warning");
+        return;
+    }
+    
+    terminologyDict.set(original, translation);
+    
+    // 입력 필드 초기화
+    document.getElementById('terminologyInput').value = '';
+    
+    updateTerminologyList();
+    saveAISettings();
+    showStatus(`🔧 용어 추가: ${original} → ${translation}`, "success");
+}
+
+function removeTerminology(original) {
+    if (confirm(`"${original}" 용어를 삭제하시겠습니까?`)) {
+        terminologyDict.delete(original);
+        updateTerminologyList();
+        saveAISettings();
+        showStatus(`🗑️ 용어 삭제: ${original}`, "success");
+    }
+}
+
+function updateTerminologyList() {
+    const terminologyListEl = document.getElementById('terminologyList');
+    if (!terminologyListEl) return;
+    
+    if (terminologyDict.size === 0) {
+        terminologyListEl.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 10px; font-size: 12px;">등록된 전문용어가 없습니다</div>';
+        return;
+    }
+    
+    terminologyListEl.innerHTML = Array.from(terminologyDict.entries()).map(([original, translation]) => 
+        `<div class="terminology-item">
+            <div class="terminology-text">
+                <span class="terminology-original">${original}</span>
+                <span class="terminology-arrow">→</span>
+                <span class="terminology-translated">${translation}</span>
+            </div>
+            <button class="terminology-remove" onclick="removeTerminology('${original.replace(/'/g, "\\'")}')">삭제</button>
+        </div>`
+    ).join('');
+}
 function addVocabulary() {
     const original = els.vocabularyOriginal.value.trim();
     const translation = els.vocabularyTranslation.value.trim();
@@ -650,13 +739,11 @@ function closeWordDetail() {
     currentVocabWord = null;
 }
 
-function speakCurrentWord() {
+async function speakCurrentWord() {
     if (!currentVocabWord) return;
     
-    // 현재 단어의 발음을 TTS로 재생
-    currentTranslation = currentVocabWord.original;
-    currentSource = currentVocabWord.original;
-    handleSpeak();
+    // 단어장 전용 TTS 함수
+    await speakVocabularyWord(currentVocabWord.original, currentVocabWord.translation);
 }
 
 function removeVocabulary(original) {
@@ -707,18 +794,26 @@ function startQuiz(difficulty = 'normal') {
     els.quizModal.classList.add('active');
 }
 
-function startSingleWordQuiz() {
-    if (!currentVocabWord) return;
-    
+function startSingleWordQuiz(wordKey = null) {
     const allWords = Array.from(vocabularyDict.values());
     if (allWords.length < 3) {
         showStatus("퀴즈를 위해서는 최소 3개의 단어가 필요합니다", "warning");
         return;
     }
     
+    let targetWord;
+    if (wordKey && vocabularyDict.has(wordKey)) {
+        targetWord = vocabularyDict.get(wordKey);
+    } else if (currentVocabWord) {
+        targetWord = currentVocabWord;
+    } else {
+        showStatus("퀴즈할 단어를 찾을 수 없습니다", "error");
+        return;
+    }
+    
     quizState = {
         active: true,
-        words: [currentVocabWord],
+        words: [targetWord],
         currentIndex: 0,
         correctAnswers: 0,
         wrongAnswers: 0,
@@ -796,74 +891,312 @@ function startPronunciationPractice() {
         active: true,
         currentWord: currentVocabWord,
         isRecording: false,
-        practiceTime: Date.now()
+        practiceTime: Date.now(),
+        lastRecording: null,
+        recordingStartTime: null
     };
     
     document.getElementById('practiceWord').textContent = practiceState.currentWord.original;
     document.getElementById('practicePronunciation').textContent = `[${generatePronunciation(practiceState.currentWord.original)}]`;
     document.getElementById('practiceTips').textContent = generatePronunciationTips(practiceState.currentWord.original);
+    document.getElementById('practiceFeedback').style.display = 'none';
+    
+    const recordBtn = document.getElementById('recordBtn');
+    recordBtn.classList.remove('recording');
+    recordBtn.textContent = '🎤';
     
     closeWordDetail();
     els.practiceModal.classList.add('active');
 }
 
-function startWordPractice() {
+function startWordPractice(wordKey = null) {
     const words = Array.from(vocabularyDict.values());
     if (words.length === 0) {
         showStatus("연습할 단어가 없습니다", "warning");
         return;
     }
     
-    const randomWord = words[Math.floor(Math.random() * words.length)];
+    let selectedWord;
+    if (wordKey && vocabularyDict.has(wordKey)) {
+        selectedWord = vocabularyDict.get(wordKey);
+    } else {
+        selectedWord = words[Math.floor(Math.random() * words.length)];
+    }
+    
     practiceState = {
         active: true,
-        currentWord: randomWord,
+        currentWord: selectedWord,
         isRecording: false,
-        practiceTime: Date.now()
+        practiceTime: Date.now(),
+        lastRecording: null,
+        recordingStartTime: null
     };
     
     document.getElementById('practiceWord').textContent = practiceState.currentWord.original;
     document.getElementById('practicePronunciation').textContent = `[${generatePronunciation(practiceState.currentWord.original)}]`;
     document.getElementById('practiceTips').textContent = generatePronunciationTips(practiceState.currentWord.original);
+    document.getElementById('practiceFeedback').style.display = 'none';
+    
+    const recordBtn = document.getElementById('recordBtn');
+    recordBtn.classList.remove('recording');
+    recordBtn.textContent = '🎤';
     
     els.practiceModal.classList.add('active');
 }
 
-function listenPracticeWord() {
-    if (!practiceState.currentWord) return;
-    
-    currentTranslation = practiceState.currentWord.original;
-    currentSource = practiceState.currentWord.original;
-    handleSpeak();
+// ✅ 단어장 전용 TTS 함수 추가
+async function speakVocabularyWord(word, translation = null) {
+    try {
+        // 언어 자동 감지 - 간단한 방식
+        let language = 'English'; // 기본값
+        let useGoogleTTS = true;
+        
+        if (/[가-힣]/.test(word)) {
+            language = 'Korean';
+        } else if (/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđĐ]/.test(word)) {
+            language = 'Vietnamese';
+        }
+        
+        // TTS 엔진 선택
+        const engineMode = els.ttsEngineMode.value;
+        if (engineMode === 'openai') {
+            useGoogleTTS = false;
+        } else if (engineMode === 'google') {
+            useGoogleTTS = true;
+        } else {
+            // auto 모드: 짧은 단어는 Google, 긴 단어는 OpenAI
+            useGoogleTTS = word.length < 50;
+        }
+        
+        const voiceName = useGoogleTTS ? els.googleVoiceSelect.value : els.voiceSelect.value;
+        const cacheKey = `vocab:${word}:${language}:${useGoogleTTS}:${voiceName}`;
+        
+        // 캐시 확인
+        const cachedAudio = cacheManager.getTTS(cacheKey);
+        if (cachedAudio) {
+            queueAudioBlob(cachedAudio);
+            showStatus("🔊 단어 재생 (캐시)", "success");
+            return;
+        }
+        
+        showStatus("🔊 단어 음성 생성 중...", "info");
+        
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                action: "speak",
+                inputText: word,
+                language: language,
+                useGoogleTTS: useGoogleTTS,
+                voice: voiceName,
+                voiceName: voiceName
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`TTS API 오류: ${response.statusText}`);
+        }
+        
+        const audioBlob = await response.blob();
+        cacheManager.setTTS(cacheKey, audioBlob);
+        queueAudioBlob(audioBlob);
+        
+        showStatus(`🔊 ${word} 재생 완료`, "success");
+        
+    } catch (error) {
+        console.error('단어 TTS 오류:', error);
+        showStatus(`음성 재생 실패: ${error.message}`, "error");
+    }
 }
 
+// ✅ 발음 연습 전용 TTS 함수
+async function listenPracticeWord() {
+    if (!practiceState.currentWord) return;
+    
+    await speakVocabularyWord(practiceState.currentWord.original);
+}
+
+// ✅ 마이크/녹음 기능 완전 수정
 function toggleRecording() {
+    if (!practiceState.currentWord) return;
+    
     const recordBtn = document.getElementById('recordBtn');
     
     if (practiceState.isRecording) {
         // 녹음 중지
-        practiceState.isRecording = false;
-        recordBtn.classList.remove('recording');
-        recordBtn.textContent = '🎤';
-        
-        // 피드백 표시
-        const feedback = document.getElementById('practiceFeedback');
-        const feedbackText = document.getElementById('practiceFeedbackText');
-        feedbackText.textContent = generatePronunciationFeedback();
-        feedback.style.display = 'block';
-        
-        // 연습 시간 기록
-        const practiceTime = Math.floor((Date.now() - practiceState.practiceTime) / 1000);
-        practiceState.currentWord.practiceTime += practiceTime;
-        
+        stopPracticeRecording();
     } else {
         // 녹음 시작
-        practiceState.isRecording = true;
-        recordBtn.classList.add('recording');
-        recordBtn.textContent = '⏸️';
-        
-        document.getElementById('practiceFeedback').style.display = 'none';
+        startPracticeRecording();
     }
+}
+
+function startPracticeRecording() {
+    if (!recognition) {
+        setupSpeechRecognition();
+    }
+    
+    if (!recognition) {
+        showStatus("음성 인식을 지원하지 않는 브라우저입니다", "error");
+        return;
+    }
+    
+    // 언어 설정
+    const word = practiceState.currentWord.original;
+    let langCode = 'en-US'; // 기본값
+    
+    if (/[가-힣]/.test(word)) {
+        langCode = 'ko-KR';
+    } else if (/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđĐ]/.test(word)) {
+        langCode = 'vi-VN';
+    }
+    
+    try {
+        practiceState.isRecording = true;
+        practiceState.recordingStartTime = Date.now();
+        
+        const recordBtn = document.getElementById('recordBtn');
+        recordBtn.classList.add('recording');
+        recordBtn.textContent = '⏹️';
+        
+        recognition.lang = langCode;
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        
+        // 발음 연습 전용 이벤트 핸들러
+        recognition.onresult = function(event) {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                if (event.results[i].isFinal) {
+                    transcript += event.results[i][0].transcript;
+                }
+            }
+            
+            if (transcript.trim()) {
+                practiceState.lastRecording = transcript.trim();
+            }
+        };
+        
+        recognition.onend = function() {
+            stopPracticeRecording();
+        };
+        
+        recognition.onerror = function(event) {
+            console.error('음성 인식 오류:', event.error);
+            showStatus(`음성 인식 오류: ${event.error}`, "error");
+            stopPracticeRecording();
+        };
+        
+        recognition.start();
+        showStatus("🎤 발음을 시작하세요...", "info");
+        
+    } catch (error) {
+        console.error('녹음 시작 오류:', error);
+        showStatus("녹음 시작에 실패했습니다", "error");
+        stopPracticeRecording();
+    }
+}
+
+function stopPracticeRecording() {
+    practiceState.isRecording = false;
+    
+    const recordBtn = document.getElementById('recordBtn');
+    recordBtn.classList.remove('recording');
+    recordBtn.textContent = '🎤';
+    
+    if (recognition && recognition.abort) {
+        recognition.abort();
+    }
+    
+    // 녹음 시간 계산
+    if (practiceState.recordingStartTime) {
+        const recordingTime = Math.floor((Date.now() - practiceState.recordingStartTime) / 1000);
+        practiceState.currentWord.practiceTime += recordingTime;
+    }
+    
+    // 피드백 표시
+    const feedback = document.getElementById('practiceFeedback');
+    const feedbackText = document.getElementById('practiceFeedbackText');
+    
+    if (practiceState.lastRecording) {
+        const originalWord = practiceState.currentWord.original.toLowerCase();
+        const recordedWord = practiceState.lastRecording.toLowerCase();
+        
+        // 간단한 유사도 검사
+        const similarity = calculateSimilarity(originalWord, recordedWord);
+        let feedbackMessage = '';
+        
+        if (similarity > 0.8) {
+            feedbackMessage = `✅ 훌륭합니다! "${practiceState.lastRecording}"로 정확하게 발음했습니다.`;
+        } else if (similarity > 0.6) {
+            feedbackMessage = `👍 좋습니다! "${practiceState.lastRecording}"로 들렸습니다. 조금 더 명확하게 발음해보세요.`;
+        } else if (similarity > 0.3) {
+            feedbackMessage = `📝 "${practiceState.lastRecording}"로 들렸습니다. 정확한 발음은 "${practiceState.currentWord.original}"입니다. 다시 시도해보세요.`;
+        } else {
+            feedbackMessage = `🔄 명확하게 들리지 않았습니다. 천천히 또박또박 발음해보세요.`;
+        }
+        
+        feedbackText.textContent = feedbackMessage;
+        feedback.style.display = 'block';
+        
+        // 통계 업데이트
+        if (similarity > 0.7) {
+            practiceState.currentWord.correctCount++;
+        } else {
+            practiceState.currentWord.wrongCount++;
+        }
+        
+    } else {
+        feedbackText.textContent = "음성이 인식되지 않았습니다. 마이크 권한을 확인하고 다시 시도해주세요.";
+        feedback.style.display = 'block';
+    }
+    
+    practiceState.lastRecording = null;
+    practiceState.recordingStartTime = null;
+    
+    // 데이터 저장
+    saveVocabularyData();
+}
+
+// 텍스트 유사도 계산 함수
+function calculateSimilarity(str1, str2) {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const distance = levenshteinDistance(longer, shorter);
+    return (longer.length - distance) / longer.length;
+}
+
+// 레벤슈타인 거리 계산
+function levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    
+    return matrix[str2.length][str1.length];
 }
 
 function nextPracticeWord() {
@@ -874,6 +1207,8 @@ function nextPracticeWord() {
     practiceState.currentWord = randomWord;
     practiceState.isRecording = false;
     practiceState.practiceTime = Date.now();
+    practiceState.lastRecording = null;
+    practiceState.recordingStartTime = null;
     
     document.getElementById('practiceWord').textContent = randomWord.original;
     document.getElementById('practicePronunciation').textContent = `[${generatePronunciation(randomWord.original)}]`;
@@ -886,8 +1221,21 @@ function nextPracticeWord() {
 }
 
 function closePractice() {
+    // 녹음 중이면 중지
+    if (practiceState.isRecording) {
+        stopPracticeRecording();
+    }
+    
     els.practiceModal.classList.remove('active');
-    practiceState.active = false;
+    practiceState = {
+        active: false,
+        currentWord: null,
+        isRecording: false,
+        practiceTime: 0,
+        lastRecording: null,
+        recordingStartTime: null
+    };
+    
     saveVocabularyData();
     updateVocabularyStats();
 }
@@ -934,15 +1282,15 @@ function updateVocabularyList() {
             : 0;
         
         return `
-            <div class="vocabulary-item" onclick="showWordDetail('${word.original}')">
+            <div class="vocabulary-item" onclick="showWordDetail('${word.original.replace(/'/g, "\\'")}')">
                 <div class="vocabulary-word">
                     <div class="vocabulary-word-main">${word.original}</div>
                     <div class="vocabulary-word-sub">${word.translation} (정답률: ${accuracy}%)</div>
                 </div>
                 <div class="vocabulary-actions">
-                    <button class="vocabulary-btn quiz" onclick="event.stopPropagation(); startSingleWordQuiz('${word.original}')" title="퀴즈">🎯</button>
-                    <button class="vocabulary-btn practice" onclick="event.stopPropagation(); startWordPractice('${word.original}')" title="연습">🎤</button>
-                    <button class="vocabulary-btn remove" onclick="event.stopPropagation(); removeVocabulary('${word.original}')" title="삭제">🗑️</button>
+                    <button class="vocabulary-btn quiz" onclick="event.stopPropagation(); startSingleWordQuiz('${word.original.replace(/'/g, "\\'")}');" title="퀴즈">🎯</button>
+                    <button class="vocabulary-btn practice" onclick="event.stopPropagation(); startWordPractice('${word.original.replace(/'/g, "\\'")}');" title="연습">🎤</button>
+                    <button class="vocabulary-btn remove" onclick="event.stopPropagation(); removeVocabulary('${word.original.replace(/'/g, "\\'")}');" title="삭제">🗑️</button>
                 </div>
             </div>
         `;
@@ -1173,12 +1521,12 @@ function toggleAIMode() {
 }
 
 function updateContextPreview() {
-    if (!aiContextMode || contextLength === 0) {
+    if (!aiContextMode) {
         els.contextPreview.classList.remove('active');
         return;
     }
     
-    const recentContext = translationContext.slice(-contextLength);
+    const recentContext = translationContext.slice(-5); // 최근 5개 고정
     if (recentContext.length === 0) {
         els.contextPreview.classList.remove('active');
         return;
@@ -1221,9 +1569,9 @@ function buildContextualPrompt(inputText, targetLang) {
         });
     }
     
-    // 문맥 정보 추가
-    if (contextLength > 0 && translationContext.length > 0) {
-        const recentContext = translationContext.slice(-contextLength);
+    // 문맥 정보 추가 (최근 5개 고정)
+    if (translationContext.length > 0) {
+        const recentContext = translationContext.slice(-5);
         prompt += "\n이전 번역 맥락:\n";
         recentContext.forEach((ctx, index) => {
             prompt += `${index + 1}. "${ctx.source}" → "${ctx.translation}"\n`;
@@ -1327,8 +1675,8 @@ function saveAISettings() {
         aiContextMode,
         translationContext: translationContext.slice(-20), // 최근 20개만 저장
         currentTranslationStyle,
-        contextLength,
-        qualityLevel
+        qualityLevel,
+        terminologyDict: Array.from(terminologyDict.entries()) // 전문용어 사전 저장
     };
     localStorage.setItem('aiSettings', JSON.stringify(aiSettings));
 }
@@ -1341,8 +1689,12 @@ function loadAISettings() {
             aiContextMode = aiSettings.aiContextMode || false;
             translationContext = aiSettings.translationContext || [];
             currentTranslationStyle = aiSettings.currentTranslationStyle || 'balanced';
-            contextLength = aiSettings.contextLength || 3;
             qualityLevel = aiSettings.qualityLevel || 3;
+            
+            // 전문용어 사전 복원
+            if (aiSettings.terminologyDict) {
+                terminologyDict = new Map(aiSettings.terminologyDict);
+            }
             
             // UI 업데이트
             els.aiToggle.classList.toggle('active', aiContextMode);
@@ -1350,8 +1702,6 @@ function loadAISettings() {
             els.translateBtn.classList.toggle('ai-enhanced', aiContextMode);
             els.translateBtnText.textContent = aiContextMode ? 'AI 번역' : '번역하기';
             els.aiSettingsSection.style.display = aiContextMode ? 'block' : 'none';
-            els.contextLength.value = contextLength;
-            els.contextLengthValue.textContent = `${contextLength}문장`;
             els.qualitySlider.value = qualityLevel;
             
             // 스타일 버튼 업데이트
@@ -1359,6 +1709,8 @@ function loadAISettings() {
                 btn.classList.toggle('active', btn.dataset.style === currentTranslationStyle);
             });
             
+            // 전문용어 목록 업데이트
+            updateTerminologyList();
             updateContextPreview();
         } catch (e) {
             console.error('AI 설정 로드 실패:', e);
@@ -1431,6 +1783,8 @@ window.nextPracticeWord = nextPracticeWord;
 window.closePractice = closePractice;
 window.toggleAIMode = toggleAIMode;
 window.switchVocabTab = switchVocabTab;
+window.addTerminology = addTerminology;
+window.removeTerminology = removeTerminology;
 
 // ✅ 초기화
 document.addEventListener("DOMContentLoaded", function() {
@@ -1518,15 +1872,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         
         // AI 기능 이벤트 리스너들
-        if (els.contextLength) {
-            els.contextLength.addEventListener("input", function(e) {
-                contextLength = parseInt(e.target.value);
-                if (els.contextLengthValue) els.contextLengthValue.textContent = `${contextLength}문장`;
-                updateContextPreview();
-                saveAISettings();
-            });
-        }
-        
         if (els.qualitySlider) {
             els.qualitySlider.addEventListener("input", function(e) {
                 qualityLevel = parseInt(e.target.value);
@@ -1558,6 +1903,17 @@ document.addEventListener("DOMContentLoaded", function() {
             els.inputText.addEventListener('input', function() {
                 if (aiContextMode) {
                     updateContextPreview();
+                }
+            });
+        }
+        
+        // 전문용어 입력 필드 엔터키 이벤트 (간소화)
+        const terminologyInputEl = document.getElementById('terminologyInput');
+        
+        if (terminologyInputEl) {
+            terminologyInputEl.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addTerminology();
                 }
             });
         }
@@ -1617,7 +1973,7 @@ document.addEventListener("DOMContentLoaded", function() {
             document.addEventListener(event, initAudioContext, { once: true });
         });
         
-        showStatus("✅ 번역기 v6.0 완전 수정 완료", "success");
+        showStatus("✅ 번역기 v6.0 - 전문용어 UI 간소화 완료", "success");
         
     } catch (error) {
         console.error('초기화 오류:', error);
