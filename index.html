@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GPT 양방향 음성 번역기 Pro v5.0 - Final Revision</title>
+    <title>GPT 양방향 음성 번역기 Pro v6.0 - AI 문맥 번역 고도화</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
             --primary: #4F46E5; --secondary: #7C3AED; --bg: #ffffff; --text: #212529;
             --text-secondary: #868e96; --border: #e0e0e0; --card-bg: #f8f9fa;
             --success: #51cf66; --warning: #ffd43b; --error: #ff6b6b;
-            --google-blue: #4285F4; --openai-green: #10A37F;
+            --google-blue: #4285F4; --openai-green: #10A37F; --ai-purple: #8B5CF6;
         }
         [data-theme="dark"] {
             --primary: #6366F1; --secondary: #8B5CF6; --bg: #1a1a1a; --text: #ffffff;
@@ -20,15 +20,19 @@
         .container { max-width: 500px; margin: 0 auto; background: var(--bg); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
         .header { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; padding: 20px; text-align: center; }
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .header h1 { font-size: 20px; margin: 0; text-align: center; flex-grow: 1; }
+        .header h1 { font-size: 18px; margin: 0; text-align: center; flex-grow: 1; }
         .header-controls { display: flex; gap: 10px; }
-        .theme-toggle, .settings-toggle, .dashboard-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 5px 10px; cursor: pointer; font-size: 16px; }
+        .theme-toggle, .settings-toggle, .dashboard-toggle, .ai-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 5px 10px; cursor: pointer; font-size: 16px; }
+        .ai-toggle { background: rgba(139, 92, 246, 0.3); border: 2px solid rgba(255,255,255,0.3); }
+        .ai-toggle.active { background: rgba(139, 92, 246, 0.8); border-color: rgba(255,255,255,0.8); }
         .language-selector { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .language-selector select { width: 40%; padding: 10px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.2); color: white; font-weight: bold; -webkit-appearance: none; appearance: none; text-align: center; }
         .language-selector select option { color: black; }
         .language-selector button { width: 40px; height: 40px; border-radius: 50%; border: none; background: white; color: var(--primary); font-size: 20px; cursor: pointer; flex-shrink: 0; }
         .auto-detect-badge { background: #FEF3C7; color: #92400E; padding: 4px 8px; border-radius: 12px; font-size: 11px; margin-top: 10px; display: none; }
         .auto-detect-badge.active { display: inline-block; }
+        .ai-context-badge { background: linear-gradient(135deg, #8B5CF6, #A855F7); color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; margin-left: 10px; display: none; }
+        .ai-context-badge.active { display: inline-block; }
         .content { padding: 20px; }
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; padding: 20px; align-items: center; justify-content: center; }
         .modal.active { display: flex; }
@@ -70,6 +74,22 @@
         .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 21px; height: 21px; background: white; border-radius: 50%; transition: transform 0.3s; }
         .toggle-switch.active::after { transform: translateX(25px); }
 
+        /* AI 문맥 번역 설정 스타일 */
+        .ai-settings-section { background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(168, 85, 247, 0.1)); border: 2px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 15px; margin-bottom: 20px; }
+        .ai-settings-title { color: var(--ai-purple); font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .context-length-control { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .quality-slider { width: 100%; margin: 10px 0; }
+        .quality-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-top: 5px; }
+        .style-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+        .style-btn { padding: 8px; border: 2px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 11px; text-align: center; transition: all 0.3s; }
+        .style-btn.active { border-color: var(--ai-purple); background: rgba(139, 92, 246, 0.1); color: var(--ai-purple); }
+        .terminology-section { margin-top: 15px; }
+        .terminology-input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; margin-bottom: 8px; }
+        .terminology-list { max-height: 100px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px; }
+        .terminology-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; font-size: 11px; border-bottom: 1px solid var(--border); }
+        .terminology-item:last-child { border-bottom: none; }
+        .terminology-remove { background: var(--error); color: white; border: none; border-radius: 3px; padding: 2px 6px; font-size: 10px; cursor: pointer; }
+
         .recent-plays { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 20px; display: none; }
         .recent-plays.active { display: block; }
         .recent-plays-title { font-size: 13px; font-weight: bold; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
@@ -81,7 +101,9 @@
         .recent-play-actions { display: flex; gap: 5px; align-items: center; }
         .recent-play-btn { background: var(--primary); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; }
         .engine-indicator { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; color: white; }
-        .engine-indicator.google { background: var(--google-blue); } .engine-indicator.openai { background: var(--openai-green); }
+        .engine-indicator.google { background: var(--google-blue); } 
+        .engine-indicator.openai { background: var(--openai-green); }
+        .engine-indicator.ai { background: var(--ai-purple); }
         .cache-indicator { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 5px; background: var(--success); color: white; }
 
         .mode-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; background: var(--card-bg); padding: 10px; border-radius: 12px; }
@@ -116,6 +138,7 @@
         button { padding: 14px; border: none; border-radius: 10px; font-size: 14px; font-weight: bold; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
         button:hover { transform: translateY(-2px); }
         .btn-translate { background: linear-gradient(135deg, var(--primary), var(--secondary)); }
+        .btn-translate.ai-enhanced { background: linear-gradient(135deg, var(--ai-purple), var(--secondary)); }
         .btn-voice { background: #FF6B6B; } .btn-voice.recording { animation: pulse 1s infinite; }
         .btn-clear { background: #868e96; }
         .btn-history { background: #6F42C1; }
@@ -136,14 +159,20 @@
 
         .status { text-align: center; font-size: 12px; color: var(--text-secondary); min-height: 20px; margin-top: 10px; }
         .status.error { color: var(--error); } .status.success { color: var(--success); } .status.warning { color: var(--warning); }
+
+        /* AI 문맥 표시 스타일 */
+        .context-preview { background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--ai-purple); padding: 10px; margin-bottom: 15px; border-radius: 8px; font-size: 12px; color: var(--text-secondary); display: none; }
+        .context-preview.active { display: block; }
+        .context-preview-title { color: var(--ai-purple); font-weight: bold; margin-bottom: 5px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <div class="header-top">
-                <h1>GPT 번역기 Pro v5.0</h1>
+                <h1>GPT 번역기 Pro v6.0</h1>
                 <div class="header-controls">
+                    <button class="ai-toggle" id="aiToggle" onclick="toggleAIMode()" title="AI 문맥 번역">🧠</button>
                     <button class="dashboard-toggle" onclick="toggleDashboard()">📊</button>
                     <button class="settings-toggle" onclick="toggleSettings()">⚙️</button>
                     <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
@@ -155,11 +184,53 @@
                 <select id="targetLangSelect"><option value="Vietnamese">베트남어</option><option value="Korean">한국어</option><option value="English">영어</option></select>
             </div>
             <span class="auto-detect-badge" id="autoDetectBadge"></span>
+            <span class="ai-context-badge" id="aiContextBadge">🧠 AI 문맥 번역</span>
         </div>
         
         <div class="content">
             <div class="settings-panel" id="settingsPanel">
                 <div class="settings-title"><span>⚙️ 설정</span><button class="settings-close" onclick="toggleSettings()">×</button></div>
+                
+                <!-- AI 문맥 번역 설정 섹션 -->
+                <div class="ai-settings-section" id="aiSettingsSection">
+                    <div class="ai-settings-title">🧠 AI 문맥 번역 고도화</div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">문맥 활용 길이<small>이전 번역 기록을 참고할 문장 수</small></label>
+                        <div class="setting-control">
+                            <input type="range" id="contextLength" min="0" max="10" value="3" step="1">
+                            <span class="setting-value" id="contextLengthValue">3문장</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <label class="setting-label">번역 품질 vs 속도<small>높을수록 정확하지만 느림</small></label>
+                        <div class="setting-control">
+                            <input type="range" class="quality-slider" id="qualitySlider" min="1" max="5" value="3" step="1">
+                        </div>
+                        <div class="quality-labels">
+                            <span>빠름</span><span>균형</span><span>정확</span>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <label class="setting-label">번역 스타일</label>
+                        <div class="style-buttons">
+                            <div class="style-btn active" data-style="balanced">균형잡힌</div>
+                            <div class="style-btn" data-style="formal">격식체</div>
+                            <div class="style-btn" data-style="casual">친근체</div>
+                            <div class="style-btn" data-style="literal">직역체</div>
+                        </div>
+                    </div>
+
+                    <div class="terminology-section">
+                        <label class="setting-label">전문용어 사전<small>일관성 있는 번역을 위한 용어 등록</small></label>
+                        <input type="text" class="terminology-input" id="terminologyInput" placeholder="원어 | 번역어 (예: AI | 인공지능)">
+                        <button onclick="addTerminology()" style="width: 100%; padding: 6px; background: var(--ai-purple); color: white; border: none; border-radius: 6px; font-size: 11px; margin-bottom: 8px;">용어 추가</button>
+                        <div class="terminology-list" id="terminologyList"></div>
+                    </div>
+                </div>
+
                 <div class="settings-grid">
                     <div class="setting-item">
                         <label class="setting-label" for="ttsEngineMode">🔊 TTS 엔진 선택<small>Google: 무료/일반 | OpenAI: 유료/고품질</small></label>
@@ -216,6 +287,11 @@
             </div>
             
             <div class="normal-mode" id="normalMode">
+                <div class="context-preview" id="contextPreview">
+                    <div class="context-preview-title">🧠 활용될 문맥 정보:</div>
+                    <div id="contextContent"></div>
+                </div>
+                
                 <div class="input-wrapper">
                     <textarea id="inputText" placeholder="번역할 텍스트를 입력하세요..."></textarea>
                     <div class="input-actions">
@@ -224,14 +300,14 @@
                     </div>
                 </div>
                 <div class="controls">
-                    <button class="btn-translate" onclick="handleTranslate()"><span>📝</span> 번역하기</button>
+                    <button class="btn-translate" id="translateBtn" onclick="handleTranslate()"><span>📝</span> <span id="translateBtnText">번역하기</span></button>
                     <button class="btn-voice" id="voiceBtn" onclick="handleVoiceTranslate()"><span>🎤</span> 음성 번역</button>
                     <button class="btn-clear" onclick="clearAll()"><span>🗑️</span> 모두 지우기</button>
                     <button class="btn-history" onclick="showHistory()"><span>📜</span> 기록 보기</button>
                 </div>
                 <div class="result-section">
                     <div class="result-header">
-                        <span class="result-label">번역 결과<span id="cacheIndicator" class="cache-indicator" style="display: none;">캐시됨</span></span>
+                        <span class="result-label">번역 결과<span id="cacheIndicator" class="cache-indicator" style="display: none;">캐시됨</span><span id="aiIndicator" class="engine-indicator ai" style="display: none;">AI</span></span>
                         <div class="result-actions">
                             <button class="btn-action" onclick="copyTranslation()" id="copyBtn" disabled>📋 복사</button>
                             <button class="btn-action" id="speakBtn" onclick="handleSpeak()" disabled>🔊 듣기<span id="engineIndicator" class="engine-indicator" style="display: none;"></span></button>
@@ -259,16 +335,285 @@
     
 <script>
 // ===================================================
-// GPT 양방향 음성 번역기 Pro v5.0 - 최종 통합 수정 버전
+// GPT 양방향 음성 번역기 Pro v6.0 - AI 문맥 번역 고도화
 // ===================================================
 const API_URL = 'https://knstranslator.netlify.app/.netlify/functions/translate';
-const els={inputText:document.getElementById("inputText"),translation:document.getElementById("translation"),pronunciationContent:document.getElementById("pronunciation-content"),pronunciationSection:document.getElementById("pronunciationSection"),pronToggleIcon:document.getElementById("pronToggleIcon"),status:document.getElementById("status"),voiceBtn:document.getElementById("voiceBtn"),speakBtn:document.getElementById("speakBtn"),copyBtn:document.getElementById("copyBtn"),sourceLangSelect:document.getElementById("sourceLangSelect"),targetLangSelect:document.getElementById("targetLangSelect"),voiceSelect:document.getElementById("voiceSelect"),googleVoiceSelect:document.getElementById("googleVoiceSelect"),autoDetectBadge:document.getElementById("autoDetectBadge"),settingsPanel:document.getElementById("settingsPanel"),normalMode:document.getElementById("normalMode"),conversationMode:document.getElementById("conversationMode"),normalModeBtn:document.getElementById("normalModeBtn"),conversationModeBtn:document.getElementById("conversationModeBtn"),speakerCardA:document.getElementById("speakerCardA"),speakerCardB:document.getElementById("speakerCardB"),speakerLangA:document.getElementById("speakerLangA"),speakerLangB:document.getElementById("speakerLangB"),startConversationBtn:document.getElementById("startConversationBtn"),stopConversationBtn:document.getElementById("stopConversationBtn"),conversationHistory:document.getElementById("conversationHistory"),ttsEngineMode:document.getElementById("ttsEngineMode"),cacheIndicator:document.getElementById("cacheIndicator"),engineIndicator:document.getElementById("engineIndicator"),recentPlays:document.getElementById("recentPlays"),recentPlayList:document.getElementById("recentPlayList"),dashboardModal:document.getElementById("dashboardModal"),historyModal:document.getElementById("historyModal"),historyList:document.getElementById("historyList"),todayTranslations:document.getElementById("todayTranslations"),totalTranslations:document.getElementById("totalTranslations"),cacheHitRate:document.getElementById("cacheHitRate"),autoModeSettings:document.getElementById("autoModeSettings"),autoThreshold:document.getElementById("autoThreshold"),thresholdValue:document.getElementById("thresholdValue"),volumeControl:document.getElementById("volumeControl"),volumeValue:document.getElementById("volumeValue"),pronunciationToggle:document.getElementById("pronunciationToggle")};
+
+// AI 문맥 번역 설정 추가
+let aiContextMode = false;
+let translationContext = [];
+let terminologyDict = new Map();
+let currentTranslationStyle = 'balanced';
+let contextLength = 3;
+let qualityLevel = 3;
+
+const els={inputText:document.getElementById("inputText"),translation:document.getElementById("translation"),pronunciationContent:document.getElementById("pronunciation-content"),pronunciationSection:document.getElementById("pronunciationSection"),pronToggleIcon:document.getElementById("pronToggleIcon"),status:document.getElementById("status"),voiceBtn:document.getElementById("voiceBtn"),speakBtn:document.getElementById("speakBtn"),copyBtn:document.getElementById("copyBtn"),sourceLangSelect:document.getElementById("sourceLangSelect"),targetLangSelect:document.getElementById("targetLangSelect"),voiceSelect:document.getElementById("voiceSelect"),googleVoiceSelect:document.getElementById("googleVoiceSelect"),autoDetectBadge:document.getElementById("autoDetectBadge"),settingsPanel:document.getElementById("settingsPanel"),normalMode:document.getElementById("normalMode"),conversationMode:document.getElementById("conversationMode"),normalModeBtn:document.getElementById("normalModeBtn"),conversationModeBtn:document.getElementById("conversationModeBtn"),speakerCardA:document.getElementById("speakerCardA"),speakerCardB:document.getElementById("speakerCardB"),speakerLangA:document.getElementById("speakerLangA"),speakerLangB:document.getElementById("speakerLangB"),startConversationBtn:document.getElementById("startConversationBtn"),stopConversationBtn:document.getElementById("stopConversationBtn"),conversationHistory:document.getElementById("conversationHistory"),ttsEngineMode:document.getElementById("ttsEngineMode"),cacheIndicator:document.getElementById("cacheIndicator"),engineIndicator:document.getElementById("engineIndicator"),recentPlays:document.getElementById("recentPlays"),recentPlayList:document.getElementById("recentPlayList"),dashboardModal:document.getElementById("dashboardModal"),historyModal:document.getElementById("historyModal"),historyList:document.getElementById("historyList"),todayTranslations:document.getElementById("todayTranslations"),totalTranslations:document.getElementById("totalTranslations"),cacheHitRate:document.getElementById("cacheHitRate"),autoModeSettings:document.getElementById("autoModeSettings"),autoThreshold:document.getElementById("autoThreshold"),thresholdValue:document.getElementById("thresholdValue"),volumeControl:document.getElementById("volumeControl"),volumeValue:document.getElementById("volumeValue"),pronunciationToggle:document.getElementById("pronunciationToggle"),aiToggle:document.getElementById("aiToggle"),aiContextBadge:document.getElementById("aiContextBadge"),aiIndicator:document.getElementById("aiIndicator"),translateBtn:document.getElementById("translateBtn"),translateBtnText:document.getElementById("translateBtnText"),contextPreview:document.getElementById("contextPreview"),contextContent:document.getElementById("contextContent"),contextLength:document.getElementById("contextLength"),contextLengthValue:document.getElementById("contextLengthValue"),qualitySlider:document.getElementById("qualitySlider"),terminologyInput:document.getElementById("terminologyInput"),terminologyList:document.getElementById("terminologyList"),aiSettingsSection:document.getElementById("aiSettingsSection")};
+
 const usageTracker={data:{daily:{},monthly:{},costs:{translation:.000015,openaiTTS:.000015,googleTTS:0}},initialize(){const e=localStorage.getItem("usageData");e&&(this.data={...this.data,...JSON.parse(e)}),this.cleanOldData()},cleanOldData(){const e=Date.now()-2592e6;Object.keys(this.data.daily).forEach(t=>{new Date(t).getTime()<e&&delete this.data.daily[t]})},track(e,t,a="google"){const s=(new Date).toISOString().split("T")[0],i=s.substring(0,7);this.data.daily[s]||(this.data.daily[s]={translations:0,characters:0,cost:0,saved:0}),this.data.monthly[i]||(this.data.monthly[i]={translations:0,characters:0,cost:0,saved:0});const o=this.data.daily[s],r=this.data.monthly[i];"translation"===e?(o.translations++,r.translations++,o.characters+=t,r.characters+=t,o.cost+=t*this.data.costs.translation,r.cost+=t*this.data.costs.translation):"tts"===e&&("openai"===a?(o.cost+=t*this.data.costs.openaiTTS,r.cost+=t*this.data.costs.openaiTTS):(o.saved+=t*this.data.costs.openaiTTS,r.saved+=t*this.data.costs.openaiTTS)),this.save(),this.updateDisplay(),this.checkLimits()},save(){localStorage.setItem("usageData",JSON.stringify(this.data))},updateDisplay(){const e=(new Date).toISOString().split("T")[0],t=e.substring(0,7),a=this.data.daily[e]||{translations:0,cost:0,saved:0},s=this.data.monthly[t]||{translations:0,cost:0,saved:0};document.getElementById("todayUsage").textContent=a.translations,document.getElementById("monthUsage").textContent=s.translations,document.getElementById("todayCost").textContent=`$${a.cost.toFixed(4)}`,document.getElementById("savedCost").textContent=`$${s.saved.toFixed(4)}`,this.updateChart(),this.updateBudgetProgress()},updateChart(){const e=document.getElementById("weeklyChart");if(!e)return;const t=Array.from({length:7},(...[,e])=>(new Date(Date.now()-864e5*e)).toISOString().split("T")[0]).reverse(),a=Math.max(...t.map(e=>this.data.daily[e]?.translations||0),1);e.innerHTML=t.map(e=>{const t=this.data.daily[e]?.translations||0,s=t/a*100,i=(new Date(e)).toLocaleDateString("ko-KR",{weekday:"short"});return`<div class="bar" style="height: ${s}%"><span class="bar-value">${t}</span><span class="bar-label">${i}</span></div>`}).join("")},updateBudgetProgress(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1,s=Math.min(t/a*100,100);document.getElementById("budgetProgress").style.width=s+"%",document.getElementById("budgetPercentage").textContent=`${s.toFixed(1)}% 사용`},checkLimits(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1;t>=a?("switch"===(document.getElementById("limitAction")?.value)?(els.ttsEngineMode.value="google",showStatus("⚠️ 예산 도달 - Google TTS로 전환","warning")):"warn"===document.getElementById("limitAction")?.value?showStatus("⚠️ 일일 예산을 초과했습니다","warning"):"block"===document.getElementById("limitAction")?.value&&(window.budgetExceeded=!0,showStatus("❌ 예산 초과 - 유료 기능 제한","error"))):window.budgetExceeded=!1}};
+
 const cacheManager={translation:new Map,tts:new Map,recentPlays:[],stats:{hits:0,misses:0},getTranslation(e){const t=this.translation.get(e);return t&&Date.now()-t.ts<36e5?(this.stats.hits++,t.data):(this.stats.misses++,null)},setTranslation(e,t){this.translation.set(e,{ts:Date.now(),data:t}),this.translation.size>100&&this.translation.delete(this.translation.keys().next().value)},getTTS(e){const t=this.tts.get(e);return t&&Date.now()-t.ts<72e5?t.blob:null},setTTS(e,t){this.tts.set(e,{ts:Date.now(),blob:t}),this.tts.size>50&&this.tts.delete(this.tts.keys().next().value)},addRecentPlay(e,t,s,a){this.recentPlays.unshift({text:e,translation:t,lang:s,engine:a}),this.recentPlays.length>10&&this.recentPlays.pop(),this.save(),updateRecentPlays()},save(){localStorage.setItem("cacheData",JSON.stringify({recentPlays:this.recentPlays,stats:this.stats}))},load(){const e=localStorage.getItem("cacheData");if(e){const{recentPlays:t,stats:a}=JSON.parse(e);this.recentPlays=t||[],this.stats=a||{hits:0,misses:0}}},clear(){this.translation.clear(),this.tts.clear(),this.recentPlays=[],this.stats={hits:0,misses:0},this.save()}};
+
 let currentTranslation="",currentSource="",recognition=null,isRecording=!1,isPronunciationEnabled=!0;
 const conversationState={isActive:!1,currentSpeaker:"A",messages:[],autoRecognition:!1},langCodeMap={Korean:"ko-KR",Vietnamese:"vi-VN",English:"en-US"};
 let audioContext=null;const audioQueue=[];let isQueuePlaying=!1;
-async function handleTranslate(){const e=els.inputText.value.trim();if(!e)return;const t=els.targetLangSelect.value,a=`${e}:${t}`,s=isPronunciationEnabled?cacheManager.getTranslation(a):null;if(s)return displayTranslation(s.translation,s.pronunciation_hangul,e,!0),showStatus("📦 캐시에서 로드됨","success"),void updateStats(!0);showStatus("번역 중...","info"),els.cacheIndicator.style.display="none",usageTracker.track("translation",e.length);try{const a=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"translate",inputText:e,targetLang:t,getPronunciation:isPronunciationEnabled})}),s=await a.json();if(s.error)throw new Error(s.error);displayTranslation(s.translation,s.pronunciation_hangul,e,!1),isPronunciationEnabled&&cacheManager.setTranslation(`${e}:${t}`,s),saveToHistory(e,s.translation,els.sourceLangSelect.value,t),updateStats(!1),showStatus("번역 완료","success")}catch(e){showStatus(`번역 실패: ${e.message}`,"error")}}
+
+// AI 문맥 번역 함수들
+function toggleAIMode() {
+    aiContextMode = !aiContextMode;
+    els.aiToggle.classList.toggle('active', aiContextMode);
+    els.aiContextBadge.classList.toggle('active', aiContextMode);
+    els.translateBtn.classList.toggle('ai-enhanced', aiContextMode);
+    els.translateBtnText.textContent = aiContextMode ? 'AI 번역' : '번역하기';
+    els.aiSettingsSection.style.display = aiContextMode ? 'block' : 'none';
+    
+    if (aiContextMode) {
+        updateContextPreview();
+        showStatus("🧠 AI 문맥 번역 모드 활성화", "success");
+    } else {
+        els.contextPreview.classList.remove('active');
+        showStatus("📝 일반 번역 모드로 전환", "info");
+    }
+    
+    saveAISettings();
+}
+
+function updateContextPreview() {
+    if (!aiContextMode || contextLength === 0) {
+        els.contextPreview.classList.remove('active');
+        return;
+    }
+    
+    const recentContext = translationContext.slice(-contextLength);
+    if (recentContext.length === 0) {
+        els.contextPreview.classList.remove('active');
+        return;
+    }
+    
+    els.contextContent.innerHTML = recentContext.map(ctx => 
+        `<div style="margin-bottom: 3px; font-size: 11px;">
+            <span style="color: var(--text);">${ctx.source.substring(0, 30)}...</span> 
+            → <span style="color: var(--ai-purple);">${ctx.translation.substring(0, 30)}...</span>
+        </div>`
+    ).join('');
+    els.contextPreview.classList.add('active');
+}
+
+function buildContextualPrompt(inputText, targetLang) {
+    const sourceLang = els.sourceLangSelect.value;
+    let prompt = `번역할 텍스트: "${inputText}"\n번역 방향: ${sourceLang} → ${targetLang}\n`;
+    
+    // 번역 스타일 적용
+    const styleInstructions = {
+        balanced: "자연스럽고 균형잡힌 번역을 제공하세요.",
+        formal: "격식있고 공손한 어조로 번역하세요.",
+        casual: "친근하고 편안한 어조로 번역하세요.",
+        literal: "원문의 의미를 정확히 보존하여 직역하세요."
+    };
+    prompt += `번역 스타일: ${styleInstructions[currentTranslationStyle]}\n`;
+    
+    // 품질 레벨 적용
+    if (qualityLevel >= 4) {
+        prompt += "매우 정확하고 자연스러운 고품질 번역을 제공하세요. 문화적 뉘앙스와 관용표현을 적절히 반영하세요.\n";
+    } else if (qualityLevel >= 3) {
+        prompt += "정확하고 자연스러운 번역을 제공하세요.\n";
+    }
+    
+    // 전문용어 사전 적용
+    if (terminologyDict.size > 0) {
+        prompt += "다음 전문용어를 일관성있게 사용하세요:\n";
+        terminologyDict.forEach((translation, original) => {
+            prompt += `- "${original}" → "${translation}"\n`;
+        });
+    }
+    
+    // 문맥 정보 추가
+    if (contextLength > 0 && translationContext.length > 0) {
+        const recentContext = translationContext.slice(-contextLength);
+        prompt += "\n이전 번역 맥락:\n";
+        recentContext.forEach((ctx, index) => {
+            prompt += `${index + 1}. "${ctx.source}" → "${ctx.translation}"\n`;
+        });
+        prompt += "\n위 맥락을 고려하여 일관성있게 번역하세요.\n";
+    }
+    
+    return prompt;
+}
+
+async function handleTranslate(){
+    const inputText = els.inputText.value.trim();
+    if (!inputText) return;
+    
+    const targetLang = els.targetLangSelect.value;
+    const cacheKey = `${inputText}:${targetLang}:${aiContextMode}`;
+    
+    // 캐시 확인
+    const cachedResult = isPronunciationEnabled ? cacheManager.getTranslation(cacheKey) : null;
+    if (cachedResult) {
+        displayTranslation(cachedResult.translation, cachedResult.pronunciation_hangul, inputText, true);
+        showStatus("📦 캐시에서 로드됨", "success");
+        updateStats(true);
+        return;
+    }
+    
+    showStatus(aiContextMode ? "🧠 AI 문맥 번역 중..." : "번역 중...", "info");
+    els.cacheIndicator.style.display = "none";
+    els.aiIndicator.style.display = aiContextMode ? "inline-block" : "none";
+    
+    usageTracker.track("translation", inputText.length);
+    
+    try {
+        let requestBody;
+        
+        if (aiContextMode) {
+            // AI 문맥 번역 요청
+            const contextualPrompt = buildContextualPrompt(inputText, targetLang);
+            requestBody = {
+                action: "translate",
+                inputText: inputText,
+                targetLang: targetLang,
+                getPronunciation: isPronunciationEnabled,
+                useAIContext: true,
+                contextualPrompt: contextualPrompt,
+                qualityLevel: qualityLevel
+            };
+        } else {
+            // 일반 번역 요청
+            requestBody = {
+                action: "translate",
+                inputText: inputText,
+                targetLang: targetLang,
+                getPronunciation: isPronunciationEnabled
+            };
+        }
+        
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(requestBody)
+        });
+        
+        const result = await response.json();
+        if (result.error) throw new Error(result.error);
+        
+        displayTranslation(result.translation, result.pronunciation_hangul, inputText, false);
+        
+        // 번역 컨텍스트에 추가 (AI 모드일 때만)
+        if (aiContextMode) {
+            translationContext.push({
+                source: inputText,
+                translation: result.translation,
+                timestamp: Date.now()
+            });
+            
+            // 컨텍스트 크기 제한
+            if (translationContext.length > 20) {
+                translationContext = translationContext.slice(-20);
+            }
+            
+            updateContextPreview();
+        }
+        
+        if (isPronunciationEnabled) {
+            cacheManager.setTranslation(cacheKey, result);
+        }
+        
+        saveToHistory(inputText, result.translation, els.sourceLangSelect.value, targetLang);
+        updateStats(false);
+        showStatus(aiContextMode ? "🧠 AI 번역 완료" : "번역 완료", "success");
+        
+    } catch (error) {
+        showStatus(`번역 실패: ${error.message}`, "error");
+    }
+}
+
+// 전문용어 관리
+function addTerminology() {
+    const input = els.terminologyInput.value.trim();
+    if (!input) return;
+    
+    const parts = input.split('|').map(p => p.trim());
+    if (parts.length !== 2) {
+        showStatus("올바른 형식으로 입력하세요: 원어 | 번역어", "warning");
+        return;
+    }
+    
+    const [original, translation] = parts;
+    terminologyDict.set(original, translation);
+    els.terminologyInput.value = '';
+    updateTerminologyList();
+    saveAISettings();
+    showStatus(`용어 추가됨: ${original} → ${translation}`, "success");
+}
+
+function updateTerminologyList() {
+    if (terminologyDict.size === 0) {
+        els.terminologyList.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 10px;">등록된 용어가 없습니다</div>';
+        return;
+    }
+    
+    els.terminologyList.innerHTML = Array.from(terminologyDict.entries()).map(([original, translation]) => 
+        `<div class="terminology-item">
+            <span>${original} → ${translation}</span>
+            <button class="terminology-remove" onclick="removeTerminology('${original}')">삭제</button>
+        </div>`
+    ).join('');
+}
+
+function removeTerminology(original) {
+    terminologyDict.delete(original);
+    updateTerminologyList();
+    saveAISettings();
+    showStatus(`용어 삭제됨: ${original}`, "success");
+}
+
+// AI 설정 저장/로드
+function saveAISettings() {
+    const aiSettings = {
+        aiContextMode,
+        translationContext: translationContext.slice(-20), // 최근 20개만 저장
+        terminologyDict: Array.from(terminologyDict.entries()),
+        currentTranslationStyle,
+        contextLength,
+        qualityLevel
+    };
+    localStorage.setItem('aiSettings', JSON.stringify(aiSettings));
+}
+
+function loadAISettings() {
+    const saved = localStorage.getItem('aiSettings');
+    if (saved) {
+        try {
+            const aiSettings = JSON.parse(saved);
+            aiContextMode = aiSettings.aiContextMode || false;
+            translationContext = aiSettings.translationContext || [];
+            terminologyDict = new Map(aiSettings.terminologyDict || []);
+            currentTranslationStyle = aiSettings.currentTranslationStyle || 'balanced';
+            contextLength = aiSettings.contextLength || 3;
+            qualityLevel = aiSettings.qualityLevel || 3;
+            
+            // UI 업데이트
+            els.aiToggle.classList.toggle('active', aiContextMode);
+            els.aiContextBadge.classList.toggle('active', aiContextMode);
+            els.translateBtn.classList.toggle('ai-enhanced', aiContextMode);
+            els.translateBtnText.textContent = aiContextMode ? 'AI 번역' : '번역하기';
+            els.aiSettingsSection.style.display = aiContextMode ? 'block' : 'none';
+            els.contextLength.value = contextLength;
+            els.contextLengthValue.textContent = `${contextLength}문장`;
+            els.qualitySlider.value = qualityLevel;
+            
+            // 스타일 버튼 업데이트
+            document.querySelectorAll('.style-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.style === currentTranslationStyle);
+            });
+            
+            updateTerminologyList();
+            updateContextPreview();
+        } catch (e) {
+            console.error('AI 설정 로드 실패:', e);
+        }
+    }
+}
+
 async function handleSpeak(){if(!currentTranslation)return;window.budgetExceeded&&(els.ttsEngineMode.value="google",showStatus("❌ 예산 초과. Google TTS만 사용 가능","error"));const e=els.targetLangSelect.value,t=els.ttsEngineMode.value;let a="openai";"google"===t?a="google":"openai"===t?a="openai":"auto"===t?"Vietnamese"===e||currentTranslation.length<parseInt(els.autoThreshold.value)?a="google":a="openai":"smart"===t?currentTranslation.length<100||conversationState.isActive||"Vietnamese"===e?a="google":a="openai":a="openai";const s="google"===a?els.googleVoiceSelect.value:els.voiceSelect.value,i=`${currentTranslation}:${e}:${a}:${s}`,o=cacheManager.getTTS(i);if(els.engineIndicator.textContent=a.charAt(0).toUpperCase(),els.engineIndicator.className=`engine-indicator ${a}`,els.engineIndicator.style.display="inline-block",o)return queueAudioBlob(o),showStatus("🔊 캐시된 음성 재생","success"),void cacheManager.addRecentPlay(currentSource,currentTranslation,e,a);showStatus("음성 생성 중...","info"),usageTracker.track("tts",currentTranslation.length,a);try{const t=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"speak",inputText:currentTranslation,language:e,useGoogleTTS:"google"===a,voice:s,voiceName:s})});if(!t.ok)throw new Error(`API 오류: ${t.statusText}`);const o=await t.blob();cacheManager.setTTS(i,o),queueAudioBlob(o),cacheManager.addRecentPlay(currentSource,currentTranslation,e,a),showStatus(`🔊 ${a} TTS 재생`,"success")}catch(e){showStatus(`음성 생성 실패: ${e.message}`,"error")}}
 function handleVoiceTranslate(){recognition||setupSpeechRecognition(),isRecording?recognition.stop():(recognition.lang=langCodeMap[els.sourceLangSelect.value],recognition.start())}
 function displayTranslation(e,t,a,s){currentTranslation=e,currentSource=a,els.translation.textContent=e,els.pronunciationSection.style.display=isPronunciationEnabled?"block":"none",isPronunciationEnabled&&(els.pronunciationContent.textContent=t||""),els.speakBtn.disabled=!1,els.copyBtn.disabled=!1,els.cacheIndicator.style.display=s?"inline-block":"none"}
@@ -280,7 +625,7 @@ function swapLanguages(){const e=els.sourceLangSelect.value;els.sourceLangSelect
 function copyTranslation(){navigator.clipboard.writeText(currentTranslation).then(()=>showStatus("📋 번역문 복사 완료","success"))}
 function copyInputText(){const e=els.inputText.value;e?navigator.clipboard.writeText(e).then(()=>showStatus("📋 원문 복사 완료","success")):showStatus("복사할 내용이 없습니다","warning")}
 async function pasteFromClipboard(){try{const e=await navigator.clipboard.readText();e?(els.inputText.value+=e,showStatus("📋 붙여넣기 완료","success")):showStatus("클립보드가 비어있습니다","warning")}catch(e){console.error("붙여넣기 실패:",e),showStatus("붙여넣기에 실패했습니다","error")}}
-function clearAll(){els.inputText.value="",els.translation.textContent="",els.pronunciationContent.textContent="",els.speakBtn.disabled=!0,els.copyBtn.disabled=!0,els.cacheIndicator.style.display="none"}
+function clearAll(){els.inputText.value="",els.translation.textContent="",els.pronunciationContent.textContent="",els.speakBtn.disabled=!0,els.copyBtn.disabled=!0,els.cacheIndicator.style.display="none",els.aiIndicator.style.display="none",els.contextPreview.classList.remove("active")}
 function showStatus(e,t=""){els.status.textContent=e,els.status.className=`status ${t}`,setTimeout(()=>{els.status.textContent="",els.status.className="status"},3e3)}
 function clearAllCache(){confirm("모든 캐시 데이터를 삭제하시겠습니까?")&&(cacheManager.clear(),updateRecentPlays(),displayStats(),showStatus("✨ 캐시가 초기화되었습니다.","success"))}
 function switchToNormalMode(){conversationState.isActive&&stopConversation(),els.normalModeBtn.classList.add("active"),els.conversationModeBtn.classList.remove("active"),els.normalMode.classList.remove("hidden"),els.conversationMode.classList.remove("active")}
@@ -313,7 +658,62 @@ function saveSettings(){localStorage.setItem("ttsEngine",els.ttsEngineMode.value
 function loadSettings(){document.documentElement.setAttribute("data-theme",localStorage.getItem("theme")||"light"),isPronunciationEnabled="false"!==localStorage.getItem("pronunciationEnabled"),els.pronunciationToggle.classList.toggle("active",isPronunciationEnabled),els.pronunciationSection.style.display=isPronunciationEnabled?"block":"none",els.sourceLangSelect.value=localStorage.getItem("sourceLang")||"Korean",els.targetLangSelect.value=localStorage.getItem("targetLang")||"Vietnamese",els.ttsEngineMode.value=localStorage.getItem("ttsEngine")||"auto",els.autoThreshold.value=localStorage.getItem("autoThreshold")||"50",els.thresholdValue.textContent=`${els.autoThreshold.value}자`,els.voiceSelect.value=localStorage.getItem("voice")||"nova",els.googleVoiceSelect.value=localStorage.getItem("googleVoice")||"vi-VN-Standard-A",els.volumeControl.value=localStorage.getItem("volume")||"0.8",els.volumeValue.textContent=`${Math.round(100*els.volumeControl.value)}%`,updateAutoModeVisibility(),document.getElementById("dailyBudget").value=localStorage.getItem("dailyBudget")||"1.00",document.getElementById("monthlyBudget").value=localStorage.getItem("monthlyBudget")||"30.00"}
 function updateAutoModeVisibility(){const e=els.ttsEngineMode.value;els.autoModeSettings.style.display="auto"===e||"smart"===e?"grid":"none"}
 function togglePronunciationView(){const e=els.pronunciationContent;e.style.display="none"===e.style.display||""===e.style.display?"block":"none",els.pronToggleIcon.textContent="block"===e.style.display?"▼":"▶"}
-document.addEventListener("DOMContentLoaded",()=>{usageTracker.initialize(),cacheManager.load(),loadSettings(),setupSpeechRecognition(),updateRecentPlays(),updateSpeakerLanguages(),displayStats(),els.ttsEngineMode.addEventListener("change",()=>{updateAutoModeVisibility(),saveSettings()}),els.autoThreshold.addEventListener("input",e=>{els.thresholdValue.textContent=`${e.target.value}자`,saveSettings()}),els.volumeControl.addEventListener("input",e=>{els.volumeValue.textContent=`${Math.round(100*e.target.value)}%`,saveSettings()}),els.voiceSelect.addEventListener("change",saveSettings),els.googleVoiceSelect.addEventListener("change",saveSettings),els.pronunciationToggle.addEventListener("click",()=>{isPronunciationEnabled=!isPronunciationEnabled,els.pronunciationToggle.classList.toggle("active",isPronunciationEnabled),els.pronunciationSection.style.display=isPronunciationEnabled?"block":"none",saveSettings(),showStatus(`발음 도우미 ${isPronunciationEnabled?"ON":"OFF"}`,"success")}),document.getElementById("dailyBudget").addEventListener("change",e=>localStorage.setItem("dailyBudget",e.target.value)),document.getElementById("monthlyBudget").addEventListener("change",e=>localStorage.setItem("monthlyBudget",e.target.value)),els.sourceLangSelect.addEventListener("change",()=>{saveSettings(),updateSpeakerLanguages()}),els.targetLangSelect.addEventListener("change",()=>{saveSettings(),updateSpeakerLanguages()}),["touchstart","click"].forEach(e=>document.addEventListener(e,initAudioContext,{once:!0})),showStatus("✨ 번역기 v5.0 통합 버전 준비 완료","success")});
+
+document.addEventListener("DOMContentLoaded",()=>{
+    usageTracker.initialize();
+    cacheManager.load();
+    loadSettings();
+    loadAISettings();
+    setupSpeechRecognition();
+    updateRecentPlays();
+    updateSpeakerLanguages();
+    displayStats();
+    
+    // 기존 이벤트 리스너들
+    els.ttsEngineMode.addEventListener("change",()=>{updateAutoModeVisibility(),saveSettings()});
+    els.autoThreshold.addEventListener("input",e=>{els.thresholdValue.textContent=`${e.target.value}자`,saveSettings()});
+    els.volumeControl.addEventListener("input",e=>{els.volumeValue.textContent=`${Math.round(100*e.target.value)}%`,saveSettings()});
+    els.voiceSelect.addEventListener("change",saveSettings);
+    els.googleVoiceSelect.addEventListener("change",saveSettings);
+    els.pronunciationToggle.addEventListener("click",()=>{isPronunciationEnabled=!isPronunciationEnabled,els.pronunciationToggle.classList.toggle("active",isPronunciationEnabled),els.pronunciationSection.style.display=isPronunciationEnabled?"block":"none",saveSettings(),showStatus(`발음 도우미 ${isPronunciationEnabled?"ON":"OFF"}`,"success")});
+    document.getElementById("dailyBudget").addEventListener("change",e=>localStorage.setItem("dailyBudget",e.target.value));
+    document.getElementById("monthlyBudget").addEventListener("change",e=>localStorage.setItem("monthlyBudget",e.target.value));
+    els.sourceLangSelect.addEventListener("change",()=>{saveSettings(),updateSpeakerLanguages()});
+    els.targetLangSelect.addEventListener("change",()=>{saveSettings(),updateSpeakerLanguages()});
+    
+    // AI 기능 이벤트 리스너들
+    els.contextLength.addEventListener("input", e => {
+        contextLength = parseInt(e.target.value);
+        els.contextLengthValue.textContent = `${contextLength}문장`;
+        updateContextPreview();
+        saveAISettings();
+    });
+    
+    els.qualitySlider.addEventListener("input", e => {
+        qualityLevel = parseInt(e.target.value);
+        saveAISettings();
+    });
+    
+    // 번역 스타일 버튼 이벤트
+    document.querySelectorAll('.style-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentTranslationStyle = btn.dataset.style;
+            saveAISettings();
+        });
+    });
+    
+    // 입력 텍스트 변경 시 문맥 미리보기 업데이트
+    els.inputText.addEventListener('input', () => {
+        if (aiContextMode) {
+            updateContextPreview();
+        }
+    });
+    
+    ["touchstart","click"].forEach(e=>document.addEventListener(e,initAudioContext,{once:!0}));
+    showStatus("✨ 번역기 v6.0 AI 문맥 번역 준비 완료","success");
+});
 </script>
 </body>
 </html>
