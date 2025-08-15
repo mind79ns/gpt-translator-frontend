@@ -3,106 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GPT 양방향 음성 번역기 Pro v5.0 - Polished</title>
+    <title>GPT 양방향 음성 번역기 Pro v5.0 - Final Revision</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         :root {
             --primary: #4F46E5; --secondary: #7C3AED; --bg: #ffffff; --text: #212529;
             --text-secondary: #868e96; --border: #e0e0e0; --card-bg: #f8f9fa;
             --success: #51cf66; --warning: #ffd43b; --error: #ff6b6b;
-            --speaker-a: #4F46E5; --speaker-b: #10B981; --google-blue: #4285F4; --openai-green: #10A37F;
+            --google-blue: #4285F4; --openai-green: #10A37F;
         }
-        
         [data-theme="dark"] {
             --primary: #6366F1; --secondary: #8B5CF6; --bg: #1a1a1a; --text: #ffffff;
             --text-secondary: #a0a0a0; --border: #333333; --card-bg: #2a2a2a;
         }
-        
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); 
-            min-height: 100vh; padding: 10px;
-        }
-        
-        .container { 
-            max-width: 500px; margin: 0 auto; background: var(--bg); 
-            border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden;
-        }
-        
-        /* 수정된 헤더 UI */
-        .header { 
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); 
-            color: white; padding: 20px; text-align: center;
-        }
-
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .header h1 { 
-            font-size: 20px;
-            margin: 0;
-            text-align: center;
-            flex-grow: 1; /* 제목이 중앙 공간을 차지하도록 */
-        }
-        
-        .header-controls {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .theme-toggle, .settings-toggle, .dashboard-toggle {
-            background: rgba(255,255,255,0.2); border: none; border-radius: 20px;
-            padding: 5px 10px; cursor: pointer; font-size: 16px;
-        }
-
-        .language-selector { 
-            display: flex; align-items: center; justify-content: space-between; gap: 10px; 
-        }
-        
-        .language-selector select { 
-            width: 40%; padding: 10px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.5);
-            background: rgba(255,255,255,0.2); color: white; font-weight: bold;
-            -webkit-appearance: none; appearance: none; text-align: center;
-        }
-        
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); min-height: 100vh; padding: 10px; }
+        .container { max-width: 500px; margin: 0 auto; background: var(--bg); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .header { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; padding: 20px; text-align: center; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .header h1 { font-size: 20px; margin: 0; text-align: center; flex-grow: 1; }
+        .header-controls { display: flex; gap: 10px; }
+        .theme-toggle, .settings-toggle, .dashboard-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 5px 10px; cursor: pointer; font-size: 16px; }
+        .language-selector { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .language-selector select { width: 40%; padding: 10px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.2); color: white; font-weight: bold; -webkit-appearance: none; appearance: none; text-align: center; }
         .language-selector select option { color: black; }
-        
-        .language-selector button { 
-            width: 40px; height: 40px; border-radius: 50%; border: none; background: white;
-            color: var(--primary); font-size: 20px; cursor: pointer; flex-shrink: 0; 
-        }
-        
-        .auto-detect-badge {
-            background: #FEF3C7; color: #92400E; padding: 4px 8px;
-            border-radius: 12px; font-size: 11px; margin-top: 10px; display: none;
-        }
-        
+        .language-selector button { width: 40px; height: 40px; border-radius: 50%; border: none; background: white; color: var(--primary); font-size: 20px; cursor: pointer; flex-shrink: 0; }
+        .auto-detect-badge { background: #FEF3C7; color: #92400E; padding: 4px 8px; border-radius: 12px; font-size: 11px; margin-top: 10px; display: none; }
         .auto-detect-badge.active { display: inline-block; }
-        
         .content { padding: 20px; }
-        
-        .modal {
-            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5); z-index: 2000; padding: 20px;
-            align-items: center; justify-content: center;
-        }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; padding: 20px; align-items: center; justify-content: center; }
         .modal.active { display: flex; }
-        .modal-content-wrapper {
-            background: var(--bg); border-radius: 20px; width: 100%;
-            max-width: 600px; max-height: 90vh; overflow-y: auto; padding: 20px;
-        }
-        .modal-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border);
-        }
+        .modal-content-wrapper { background: var(--bg); border-radius: 20px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; padding: 20px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
         .modal-title { font-size: 20px; font-weight: bold; color: var(--text); }
         .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary); }
-        
         .usage-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; }
         .usage-card { background: var(--card-bg); padding: 15px; border-radius: 12px; text-align: center; }
         .usage-card-value { font-size: 24px; font-weight: bold; color: var(--primary); margin-bottom: 5px; }
@@ -120,49 +53,22 @@
         .limit-progress-bar { height: 100%; background: linear-gradient(90deg, var(--success) 0%, var(--warning) 70%, var(--error) 100%); transition: width 0.3s; }
         .limit-percentage { text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 5px; }
         
-        .settings-panel { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 20px; display: none; max-height: 500px; overflow-y: auto; }
+        .settings-panel { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px; display: none; }
         .settings-panel.active { display: block; }
-        .settings-title { font-size: 14px; font-weight: bold; color: var(--text); margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
-        .settings-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 20px; }
+        .settings-title { font-size: 16px; font-weight: bold; color: var(--text); margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .settings-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 24px; }
         .settings-grid { display: grid; gap: 20px; }
-        .setting-item { display: flex; flex-direction: column; gap: 8px; }
-        .setting-label { font-size: 12px; color: var(--text-secondary); }
-        .context-settings, .cache-settings { background: var(--bg); padding: 15px; border-radius: 12px; }
-        .context-toggle { display: flex; justify-content: space-between; align-items: center; }
-        .context-toggle:not(:last-child) { margin-bottom: 10px; }
-        .context-label { font-size: 13px; color: var(--text); }
+        .setting-item { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 15px; }
+        .setting-label { font-size: 13px; color: var(--text); }
+        .setting-label small { font-size: 11px; color: var(--text-secondary); display: block; margin-top: 4px; }
+        .setting-control { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+        .setting-control select, .setting-control input[type="range"] { width: 150px; }
+        .setting-control select { padding: 5px; border-radius: 5px; font-size: 12px; border: 1px solid var(--border); }
+        .setting-value { font-size: 12px; color: var(--primary); min-width: 40px; text-align: right; }
         .toggle-switch { position: relative; width: 50px; height: 25px; background: #ccc; border-radius: 25px; cursor: pointer; }
         .toggle-switch.active { background: var(--primary); }
         .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 21px; height: 21px; background: white; border-radius: 50%; transition: transform 0.3s; }
         .toggle-switch.active::after { transform: translateX(25px); }
-        .voice-type-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .voice-type-btn { padding: 8px; border: 2px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 11px; text-align: center; }
-        .voice-type-btn.active { border-color: var(--primary); background: var(--primary); color: white; }
-        .voice-type-btn.female { border-color: #EC4899; } .voice-type-btn.female.active { background: #EC4899; }
-        .voice-type-btn.male { border-color: #3B82F6; } .voice-type-btn.male.active { background: #3B82F6; }
-        
-        .vocabulary-section { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 20px; display: none; }
-        .vocabulary-section.active { display: block; }
-        .vocabulary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .vocabulary-title { font-size: 14px; font-weight: bold; color: var(--text); }
-        .vocabulary-add-btn { background: var(--primary); color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 11px; cursor: pointer; }
-        .vocabulary-tabs { display: flex; gap: 5px; margin-bottom: 10px; }
-        .vocab-tab { flex: 1; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; font-size: 12px; cursor: pointer; text-align: center; }
-        .vocab-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
-        .vocabulary-list { max-height: 200px; overflow-y: auto; }
-        .vocab-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--bg); border-radius: 5px; margin-bottom: 5px; cursor: pointer; }
-        .vocab-item:hover { transform: translateX(3px); }
-        .vocab-word { font-weight: bold; color: var(--text); font-size: 13px; }
-        .vocab-meaning { color: var(--text-secondary); font-size: 12px; }
-        .vocab-actions { display: flex; gap: 5px; }
-        .vocab-btn { background: var(--primary); color: white; border: none; padding: 3px 6px; border-radius: 3px; font-size: 10px; cursor: pointer; }
-        .vocab-btn.delete { background: var(--error); }
-        .vocab-add-modal { display: none; z-index: 3000; }
-        .vocab-input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px; margin-bottom: 10px; font-size: 14px; }
-        .vocab-modal-buttons { display: flex; gap: 10px; justify-content: flex-end; }
-        .vocab-modal-btn { padding: 8px 16px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; }
-        .vocab-modal-btn.save { background: var(--primary); color: white; }
-        .vocab-modal-btn.cancel { background: var(--border); color: var(--text); }
 
         .recent-plays { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 20px; display: none; }
         .recent-plays.active { display: block; }
@@ -185,7 +91,7 @@
         .conversation-mode { display: none; } .conversation-mode.active { display: block; }
         .speaker-info { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
         .speaker-card { background: var(--card-bg); padding: 15px; border-radius: 12px; border: 3px solid transparent; position: relative; }
-        .speaker-card.speaker-a { border-color: var(--speaker-a); } .speaker-card.speaker-b { border-color: var(--speaker-b); }
+        .speaker-card.speaker-a { border-color: var(--primary); } .speaker-card.speaker-b { border-color: #10B981; }
         .speaker-card.active { transform: scale(1.05); }
         .speaker-card.active::after { content: '🎤'; position: absolute; top: 5px; right: 5px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
@@ -197,20 +103,22 @@
         .conversation-history { max-height: 300px; overflow-y: auto; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); padding: 10px; }
         .conversation-message { padding: 12px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-start; }
         .message-speaker { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 14px; flex-shrink: 0; }
-        .message-speaker.speaker-a { background: var(--speaker-a); } .message-speaker.speaker-b { background: var(--speaker-b); }
+        .message-speaker.speaker-a { background: var(--primary); } .message-speaker.speaker-b { background: #10B981; }
         .message-content { flex: 1; } .message-original { font-weight: bold; color: var(--text); margin-bottom: 4px; }
         .message-translation { color: var(--text-secondary); font-style: italic; }
         
         .normal-mode { display: block; } .normal-mode.hidden { display: none; }
         .input-wrapper { position: relative; margin-bottom: 20px; }
-        .normal-mode textarea { width: 100%; min-height: 100px; padding: 15px; border: 2px solid var(--border); border-radius: 12px; font-size: 16px; resize: none; background: var(--bg); color: var(--text); }
-        .controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
-        button { padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: bold; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .input-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
+        .input-action-btn { background: var(--card-bg); border: 1px solid var(--border); color: var(--text-secondary); border-radius: 5px; padding: 4px 8px; cursor: pointer; font-size: 11px; }
+        .normal-mode textarea { width: 100%; min-height: 120px; padding: 15px; padding-right: 80px; border: 2px solid var(--border); border-radius: 12px; font-size: 16px; resize: none; background: var(--bg); color: var(--text); }
+        .controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+        button { padding: 14px; border: none; border-radius: 10px; font-size: 14px; font-weight: bold; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
         button:hover { transform: translateY(-2px); }
         .btn-translate { background: linear-gradient(135deg, var(--primary), var(--secondary)); }
         .btn-voice { background: #FF6B6B; } .btn-voice.recording { animation: pulse 1s infinite; }
         .btn-clear { background: #868e96; }
-        .btn-vocabulary { background: #17A2B8; }
+        .btn-history { background: #6F42C1; }
         
         .result-section { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
         .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -218,10 +126,10 @@
         .result-actions { display: flex; gap: 8px; align-items: center; }
         .btn-action { background: var(--primary); color: white; border: none; padding: 6px 10px; border-radius: 8px; font-size: 11px; cursor: pointer; }
         .btn-action:disabled { background: #ccc; cursor: not-allowed; }
-        #translation { font-size: 18px; color: var(--text); line-height: 1.5; min-height: 40px; }
+        #translation { font-size: 18px; color: var(--text); line-height: 1.5; min-height: 40px; word-break: break-word; }
         .pronunciation-section { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
-        .pronunciation-label { font-size: 12px; color: var(--text-secondary); font-weight: bold; margin-bottom: 8px; }
-        #pronunciation { font-size: 14px; color: var(--text-secondary); }
+        .pronunciation-label { font-size: 12px; color: var(--text-secondary); font-weight: bold; margin-bottom: 8px; cursor: pointer; }
+        #pronunciation-content { font-size: 14px; color: var(--text-secondary); }
 
         .translation-stats { background: var(--card-bg); border-radius: 8px; padding: 10px; font-size: 12px; color: var(--text-secondary); display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; }
         .stat-item strong { color: var(--primary); display: block; font-size: 16px; }
@@ -253,44 +161,35 @@
             <div class="settings-panel" id="settingsPanel">
                 <div class="settings-title"><span>⚙️ 설정</span><button class="settings-close" onclick="toggleSettings()">×</button></div>
                 <div class="settings-grid">
-                     <div class="context-settings">
-                         <div class="context-toggle"><span class="context-label">🧠 문맥 기반 번역</span><div class="toggle-switch" id="contextToggle" onclick="contextSystem.toggle()"></div></div>
-                         <div class="context-toggle"><span class="context-label">🚀 실시간 번역</span><div class="toggle-switch" id="realtimeToggle" onclick="toggleRealtime()"></div></div>
-                     </div>
-                     <div class="setting-item">
-                         <label class="setting-label">🔊 TTS 엔진</label>
-                         <select id="ttsEngineMode" onchange="saveSettings()" style="width: 100%; padding: 8px; border-radius: 5px;">
-                            <option value="auto">🤖 자동</option><option value="google">🔵 Google</option>
-                            <option value="openai">🟢 OpenAI</option><option value="smart">💡 스마트</option>
-                         </select>
-                     </div>
-                     <div class="setting-item">
-                         <label class="setting-label">🎤 OpenAI 음성</label>
-                         <div class="voice-type-selector" id="openai-voice-selector">
-                            <button class="voice-type-btn female" onclick="selectVoiceType(event, 'nova')">Nova</button><button class="voice-type-btn female" onclick="selectVoiceType(event, 'shimmer')">Shimmer</button>
-                            <button class="voice-type-btn male" onclick="selectVoiceType(event, 'alloy')">Alloy</button><button class="voice-type-btn male" onclick="selectVoiceType(event, 'echo')">Echo</button>
-                            <button class="voice-type-btn male" onclick="selectVoiceType(event, 'fable')">Fable</button><button class="voice-type-btn male" onclick="selectVoiceType(event, 'onyx')">Onyx</button>
-                         </div>
-                     </div>
-                     <div class="setting-item">
-                         <label class="setting-label">🎤 Google 음성</label>
-                         <div class="voice-type-selector" id="google-voice-selector">
-                            <button class="voice-type-btn female" onclick="selectGoogleVoice(event, 'vi-VN-Standard-A')">VN-A</button><button class="voice-type-btn male" onclick="selectGoogleVoice(event, 'vi-VN-Standard-B')">VN-B</button>
-                            <button class="voice-type-btn female" onclick="selectGoogleVoice(event, 'ko-KR-Standard-A')">KR-A</button><button class="voice-type-btn male" onclick="selectGoogleVoice(event, 'ko-KR-Standard-D')">KR-D</button>
-                         </div>
-                     </div>
-                     <div class="cache-settings"><button onclick="clearAllCache()" style="width: 100%; padding: 10px; background: var(--error); color: white;">🗑️ 캐시 초기화</button></div>
-                     <input type="hidden" id="voiceSelect" value="nova"><input type="hidden" id="googleVoiceSelect" value="vi-VN-Standard-A">
+                    <div class="setting-item">
+                        <label class="setting-label" for="ttsEngineMode">🔊 TTS 엔진 선택<small>Google: 무료/일반 | OpenAI: 유료/고품질</small></label>
+                        <div class="setting-control"><select id="ttsEngineMode"><option value="auto">🤖 자동 선택 (추천)</option><option value="google">🔵 Google TTS</option><option value="openai">🟢 OpenAI TTS</option><option value="smart">💡 스마트 모드</option></select></div>
+                    </div>
+                    <div class="setting-item" id="autoModeSettings">
+                        <label class="setting-label" for="autoThreshold">자동 모드 임계값<small>이 글자 수 이하는 Google TTS 사용</small></label>
+                        <div class="setting-control"><input type="range" id="autoThreshold" min="10" max="200" value="50" step="10"><span class="setting-value" id="thresholdValue">50자</span></div>
+                    </div>
+                    <div class="setting-item">
+                        <label class="setting-label" for="voiceSelect">음성 선택 (OpenAI)</label>
+                        <div class="setting-control"><select id="voiceSelect"><option value="nova">Nova (여성/선명)</option><option value="shimmer">Shimmer (여성/부드러움)</option><option value="alloy">Alloy (남성/차분)</option><option value="echo">Echo (남성/깊음)</option><option value="fable">Fable (남성/표현력)</option><option value="onyx">Onyx (남성/저음)</option></select></div>
+                    </div>
+                    <div class="setting-item">
+                        <label class="setting-label" for="googleVoiceSelect">음성 선택 (Google)</label>
+                        <div class="setting-control"><select id="googleVoiceSelect"><option value="vi-VN-Standard-A">🇻🇳 Standard-A (여)</option><option value="vi-VN-Standard-B">🇻🇳 Standard-B (남)</option><option value="vi-VN-Standard-C">🇻🇳 Standard-C (여)</option><option value="vi-VN-Standard-D">🇻🇳 Standard-D (남)</option><option value="ko-KR-Standard-A">🇰🇷 Standard-A (여)</option><option value="ko-KR-Standard-B">🇰🇷 Standard-B (여)</option><option value="ko-KR-Standard-C">🇰🇷 Standard-C (남)</option><option value="ko-KR-Standard-D">🇰🇷 Standard-D (남)</option></select></div>
+                    </div>
+                    <div class="setting-item">
+                        <label class="setting-label" for="volumeControl">볼륨</label>
+                        <div class="setting-control"><input type="range" id="volumeControl" min="0.1" max="1" value="0.8" step="0.1"><span class="setting-value" id="volumeValue">80%</span></div>
+                    </div>
+                    <div class="setting-item">
+                         <label class="setting-label">발음 도우미<small>OFF 시 API 요청 비용이 절감됩니다.</small></label>
+                         <div class="setting-control"><div class="toggle-switch" id="pronunciationToggle"></div></div>
+                    </div>
+                    <div class="setting-item">
+                        <label class="setting-label">💾 캐시 설정<small>반복 요청 시 비용 절감 및 속도 향상</small></label>
+                        <div class="setting-control"><button onclick="clearAllCache()" style="padding: 6px 12px; font-size: 11px; background-color: var(--error); border: none; border-radius: 5px; color: white;">🗑️ 캐시 초기화</button></div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="vocabulary-section" id="vocabularySection">
-                <div class="vocabulary-header"><span class="vocabulary-title">📚 나의 단어장</span><button class="vocabulary-add-btn" onclick="showAddVocabModal()">+ 추가</button></div>
-                <div class="vocabulary-tabs">
-                    <div class="vocab-tab active" onclick="vocabularySystem.switchTab(event, 'ko-vi')">한→베</div><div class="vocab-tab" onclick="vocabularySystem.switchTab(event, 'vi-ko')">베→한</div>
-                    <div class="vocab-tab" onclick="vocabularySystem.switchTab(event, 'all')">전체</div>
-                </div>
-                <div class="vocabulary-list" id="vocabularyList"></div>
             </div>
 
             <div class="recent-plays" id="recentPlays">
@@ -317,28 +216,32 @@
             </div>
             
             <div class="normal-mode" id="normalMode">
-                <div class="input-wrapper"><textarea id="inputText" placeholder="번역할 텍스트를 입력하세요..."></textarea></div>
+                <div class="input-wrapper">
+                    <textarea id="inputText" placeholder="번역할 텍스트를 입력하세요..."></textarea>
+                    <div class="input-actions">
+                        <button class="input-action-btn" onclick="copyInputText()">복사</button>
+                        <button class="input-action-btn" onclick="pasteFromClipboard()">붙여넣기</button>
+                    </div>
+                </div>
                 <div class="controls">
-                    <button class="btn-translate" onclick="handleTranslate()"><span>📝</span> 번역</button>
-                    <button class="btn-voice" id="voiceBtn" onclick="handleVoiceTranslate()"><span>🎤</span> 음성</button>
-                    <button class="btn-clear" onclick="clearAll()"><span>🗑️</span> 지우기</button>
-                    <button class="btn-vocabulary" onclick="toggleVocabulary()"><span>📚</span> 단어장</button>
+                    <button class="btn-translate" onclick="handleTranslate()"><span>📝</span> 번역하기</button>
+                    <button class="btn-voice" id="voiceBtn" onclick="handleVoiceTranslate()"><span>🎤</span> 음성 번역</button>
+                    <button class="btn-clear" onclick="clearAll()"><span>🗑️</span> 모두 지우기</button>
+                    <button class="btn-history" onclick="showHistory()"><span>📜</span> 기록 보기</button>
                 </div>
                 <div class="result-section">
                     <div class="result-header">
                         <span class="result-label">번역 결과<span id="cacheIndicator" class="cache-indicator" style="display: none;">캐시됨</span></span>
                         <div class="result-actions">
-                            <button class="btn-action" onclick="copyTranslation()" id="copyBtn" disabled>📋</button>
-                            <button class="btn-action" id="speakBtn" onclick="handleSpeak()" disabled>🔊<span id="engineIndicator" class="engine-indicator" style="display: none;"></span></button>
-                            <button class="btn-action" onclick="addToVocabulary()" id="addVocabBtn" disabled>📚</button>
-                            <button class="btn-action" onclick="showHistory()">📜</button>
+                            <button class="btn-action" onclick="copyTranslation()" id="copyBtn" disabled>📋 복사</button>
+                            <button class="btn-action" id="speakBtn" onclick="handleSpeak()" disabled>🔊 듣기<span id="engineIndicator" class="engine-indicator" style="display: none;"></span></button>
                         </div>
                     </div>
                     <div id="translation"></div>
                 </div>
-                <div class="pronunciation-section">
-                    <div class="pronunciation-label">발음 도우미</div>
-                    <div id="pronunciation"></div>
+                <div class="pronunciation-section" id="pronunciationSection">
+                    <div class="pronunciation-label" onclick="togglePronunciationView()">발음 도우미 <span id="pronToggleIcon">▼</span></div>
+                    <div id="pronunciation-content"></div>
                 </div>
                 <div class="translation-stats">
                     <div class="stat-item"><strong id="todayTranslations">0</strong><span>오늘 번역</span></div>
@@ -352,44 +255,32 @@
     </div>
 
     <div class="modal" id="dashboardModal"><div class="modal-content-wrapper"><div class="modal-header"><span class="modal-title">📊 대시보드</span><button class="modal-close" onclick="toggleDashboard()">×</button></div><div class="usage-cards"><div class="usage-card"><div class="usage-card-value" id="todayUsage"></div><div class="usage-card-label">오늘 번역</div></div><div class="usage-card"><div class="usage-card-value" id="monthUsage"></div><div class="usage-card-label">이번 달</div></div><div class="usage-card"><div class="usage-card-value" id="todayCost"></div><div class="usage-card-label">오늘 비용</div></div><div class="usage-card"><div class="usage-card-value" id="savedCost"></div><div class="usage-card-label">절감 비용</div></div></div><div class="chart-container"><div class="chart-title">📈 7일 사용량</div><div class="simple-bar-chart" id="weeklyChart"></div></div><div class="limit-settings"><div class="limit-title">⚠️ API 한도 관리</div><div class="limit-item"><span class="limit-label">일일 예산 ($)</span><input type="number" class="limit-input" id="dailyBudget" value="1.00" step="0.10"></div><div class="limit-item"><span class="limit-label">월간 예산 ($)</span><input type="number" class="limit-input" id="monthlyBudget" value="30.00" step="1.00"></div><div class="limit-progress"><div class="limit-progress-bar" id="budgetProgress"></div></div><div class="limit-percentage" id="budgetPercentage"></div><div class="limit-item" style="margin-top: 15px;"><span class="limit-label">한도 도달 시</span><select id="limitAction" style="width: 150px; padding: 5px; border-radius: 5px; font-size: 12px;"><option value="switch">Google로 전환</option><option value="warn">경고만</option><option value="block">차단</option></select></div></div></div></div>
-    <div class="modal" id="vocabAddModal"><div class="modal-content-wrapper" style="max-width: 400px;"><div class="modal-header"><h3 class="modal-title">📝 단어 추가</h3><button class="modal-close" onclick="hideAddVocabModal()">×</button></div><input type="text" class="vocab-input" id="vocabWord" placeholder="단어"><input type="text" class="vocab-input" id="vocabMeaning" placeholder="뜻"><select class="vocab-input" id="vocabLang"><option value="ko-vi">한→베</option><option value="vi-ko">베→한</option></select><div class="vocab-modal-buttons"><button class="vocab-modal-btn cancel" onclick="hideAddVocabModal()">취소</button><button class="vocab-modal-btn save" onclick="addVocabulary()">저장</button></div></div></div>
-    <div class="modal" id="historyModal"><div class="modal-content-wrapper"><div class="modal-header"><span class="modal-title">📜 번역 기록</span><button class="modal-close" onclick="hideHistory()">×</button></div><div id="historyList" style="max-height: 400px; overflow-y: auto;"></div><button onclick="clearHistory()" style="width: 100%; margin-top: 15px; background: var(--error);">기록 모두 삭제</button></div></div>
+    <div class="modal" id="historyModal"><div class="modal-content-wrapper"><div class="modal-header"><span class="modal-title">📜 번역 기록</span><button class="modal-close" onclick="hideHistory()">×</button></div><div id="historyList" style="max-height: 400px; overflow-y: auto;"></div><button onclick="clearHistory()" style="width: 100%; margin-top: 15px; background: var(--error); color: white; border: none; border-radius: 5px; padding: 8px;">기록 모두 삭제</button></div></div>
     
 <script>
 // ===================================================
 // GPT 양방향 음성 번역기 Pro v5.0 - 최종 통합 수정 버전
 // ===================================================
 const API_URL = 'https://knstranslator.netlify.app/.netlify/functions/translate';
-const els={inputText:document.getElementById("inputText"),translation:document.getElementById("translation"),pronunciation:document.getElementById("pronunciation"),status:document.getElementById("status"),voiceBtn:document.getElementById("voiceBtn"),speakBtn:document.getElementById("speakBtn"),copyBtn:document.getElementById("copyBtn"),addVocabBtn:document.getElementById("addVocabBtn"),sourceLangSelect:document.getElementById("sourceLangSelect"),targetLangSelect:document.getElementById("targetLangSelect"),voiceSelect:document.getElementById("voiceSelect"),googleVoiceSelect:document.getElementById("googleVoiceSelect"),realtimeToggle:document.getElementById("realtimeToggle"),autoDetectBadge:document.getElementById("autoDetectBadge"),settingsPanel:document.getElementById("settingsPanel"),normalMode:document.getElementById("normalMode"),conversationMode:document.getElementById("conversationMode"),normalModeBtn:document.getElementById("normalModeBtn"),conversationModeBtn:document.getElementById("conversationModeBtn"),speakerCardA:document.getElementById("speakerCardA"),speakerCardB:document.getElementById("speakerCardB"),speakerLangA:document.getElementById("speakerLangA"),speakerLangB:document.getElementById("speakerLangB"),startConversationBtn:document.getElementById("startConversationBtn"),stopConversationBtn:document.getElementById("stopConversationBtn"),conversationHistory:document.getElementById("conversationHistory"),ttsEngineMode:document.getElementById("ttsEngineMode"),cacheIndicator:document.getElementById("cacheIndicator"),engineIndicator:document.getElementById("engineIndicator"),recentPlays:document.getElementById("recentPlays"),recentPlayList:document.getElementById("recentPlayList"),dashboardModal:document.getElementById("dashboardModal"),vocabularySection:document.getElementById("vocabularySection"),vocabAddModal:document.getElementById("vocabAddModal"),contextToggle:document.getElementById("contextToggle"),historyModal:document.getElementById("historyModal"),historyList:document.getElementById("historyList"),todayTranslations:document.getElementById("todayTranslations"),totalTranslations:document.getElementById("totalTranslations"),cacheHitRate:document.getElementById("cacheHitRate")};
+const els={inputText:document.getElementById("inputText"),translation:document.getElementById("translation"),pronunciationContent:document.getElementById("pronunciation-content"),pronunciationSection:document.getElementById("pronunciationSection"),pronToggleIcon:document.getElementById("pronToggleIcon"),status:document.getElementById("status"),voiceBtn:document.getElementById("voiceBtn"),speakBtn:document.getElementById("speakBtn"),copyBtn:document.getElementById("copyBtn"),sourceLangSelect:document.getElementById("sourceLangSelect"),targetLangSelect:document.getElementById("targetLangSelect"),voiceSelect:document.getElementById("voiceSelect"),googleVoiceSelect:document.getElementById("googleVoiceSelect"),autoDetectBadge:document.getElementById("autoDetectBadge"),settingsPanel:document.getElementById("settingsPanel"),normalMode:document.getElementById("normalMode"),conversationMode:document.getElementById("conversationMode"),normalModeBtn:document.getElementById("normalModeBtn"),conversationModeBtn:document.getElementById("conversationModeBtn"),speakerCardA:document.getElementById("speakerCardA"),speakerCardB:document.getElementById("speakerCardB"),speakerLangA:document.getElementById("speakerLangA"),speakerLangB:document.getElementById("speakerLangB"),startConversationBtn:document.getElementById("startConversationBtn"),stopConversationBtn:document.getElementById("stopConversationBtn"),conversationHistory:document.getElementById("conversationHistory"),ttsEngineMode:document.getElementById("ttsEngineMode"),cacheIndicator:document.getElementById("cacheIndicator"),engineIndicator:document.getElementById("engineIndicator"),recentPlays:document.getElementById("recentPlays"),recentPlayList:document.getElementById("recentPlayList"),dashboardModal:document.getElementById("dashboardModal"),historyModal:document.getElementById("historyModal"),historyList:document.getElementById("historyList"),todayTranslations:document.getElementById("todayTranslations"),totalTranslations:document.getElementById("totalTranslations"),cacheHitRate:document.getElementById("cacheHitRate"),autoModeSettings:document.getElementById("autoModeSettings"),autoThreshold:document.getElementById("autoThreshold"),thresholdValue:document.getElementById("thresholdValue"),volumeControl:document.getElementById("volumeControl"),volumeValue:document.getElementById("volumeValue"),pronunciationToggle:document.getElementById("pronunciationToggle")};
 const usageTracker={data:{daily:{},monthly:{},costs:{translation:.000015,openaiTTS:.000015,googleTTS:0}},initialize(){const e=localStorage.getItem("usageData");e&&(this.data={...this.data,...JSON.parse(e)}),this.cleanOldData()},cleanOldData(){const e=Date.now()-2592e6;Object.keys(this.data.daily).forEach(t=>{new Date(t).getTime()<e&&delete this.data.daily[t]})},track(e,t,a="google"){const s=(new Date).toISOString().split("T")[0],i=s.substring(0,7);this.data.daily[s]||(this.data.daily[s]={translations:0,characters:0,cost:0,saved:0}),this.data.monthly[i]||(this.data.monthly[i]={translations:0,characters:0,cost:0,saved:0});const o=this.data.daily[s],r=this.data.monthly[i];"translation"===e?(o.translations++,r.translations++,o.characters+=t,r.characters+=t,o.cost+=t*this.data.costs.translation,r.cost+=t*this.data.costs.translation):"tts"===e&&("openai"===a?(o.cost+=t*this.data.costs.openaiTTS,r.cost+=t*this.data.costs.openaiTTS):(o.saved+=t*this.data.costs.openaiTTS,r.saved+=t*this.data.costs.openaiTTS)),this.save(),this.updateDisplay(),this.checkLimits()},save(){localStorage.setItem("usageData",JSON.stringify(this.data))},updateDisplay(){const e=(new Date).toISOString().split("T")[0],t=e.substring(0,7),a=this.data.daily[e]||{translations:0,cost:0,saved:0},s=this.data.monthly[t]||{translations:0,cost:0,saved:0};document.getElementById("todayUsage").textContent=a.translations,document.getElementById("monthUsage").textContent=s.translations,document.getElementById("todayCost").textContent=`$${a.cost.toFixed(4)}`,document.getElementById("savedCost").textContent=`$${s.saved.toFixed(4)}`,this.updateChart(),this.updateBudgetProgress()},updateChart(){const e=document.getElementById("weeklyChart");if(!e)return;const t=Array.from({length:7},(...[,e])=>(new Date(Date.now()-864e5*e)).toISOString().split("T")[0]).reverse(),a=Math.max(...t.map(e=>this.data.daily[e]?.translations||0),1);e.innerHTML=t.map(e=>{const t=this.data.daily[e]?.translations||0,s=t/a*100,i=(new Date(e)).toLocaleDateString("ko-KR",{weekday:"short"});return`<div class="bar" style="height: ${s}%"><span class="bar-value">${t}</span><span class="bar-label">${i}</span></div>`}).join("")},updateBudgetProgress(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1,s=Math.min(t/a*100,100);document.getElementById("budgetProgress").style.width=s+"%",document.getElementById("budgetPercentage").textContent=`${s.toFixed(1)}% 사용`},checkLimits(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1;t>=a?("switch"===(document.getElementById("limitAction")?.value)?(els.ttsEngineMode.value="google",showStatus("⚠️ 예산 도달 - Google TTS로 전환","warning")):"warn"===document.getElementById("limitAction")?.value?showStatus("⚠️ 일일 예산을 초과했습니다","warning"):"block"===document.getElementById("limitAction")?.value&&(window.budgetExceeded=!0,showStatus("❌ 예산 초과 - 유료 기능 제한","error"))):window.budgetExceeded=!1}};
-const vocabularySystem={words:{"ko-vi":[],"vi-ko":[],all:[]},currentTab:"ko-vi",initialize(){this.words=JSON.parse(localStorage.getItem("vocabulary"))||this.words,this.updateDisplay()},add(e,t,a){const s={id:Date.now(),word:e,meaning:t,type:a};this.words[a].push(s),this.words.all.push(s),this.save(),this.updateDisplay(),showStatus("📚 단어장에 추가되었습니다","success")},remove(e){Object.keys(this.words).forEach(t=>{this.words[t]=this.words[t].filter(t=>t.id!==e)}),this.save(),this.updateDisplay()},save(){localStorage.setItem("vocabulary",JSON.stringify(this.words))},updateDisplay(){const e=document.getElementById("vocabularyList");if(!e)return;const t=this.words[this.currentTab]||[];0===t.length?e.innerHTML='<div style="padding: 20px; text-align: center; color: var(--text-secondary);">저장된 단어가 없습니다</div>':e.innerHTML=t.map(e=>`<div class="vocab-item" onclick="speakVocab('${e.word}','${e.type}')"><div><div class="vocab-word">${e.word}</div><div class="vocab-meaning">${e.meaning}</div></div><div class="vocab-actions"><button class="vocab-btn" onclick="event.stopPropagation(); translateVocab('${e.word}')">🔍</button><button class="vocab-btn delete" onclick="event.stopPropagation(); removeVocab(${e.id})">×</button></div></div>`).join("")},switchTab(e,t){this.currentTab=t,document.querySelectorAll(".vocab-tab").forEach(e=>e.classList.remove("active")),e.currentTarget.classList.add("active"),this.updateDisplay()}};
-const contextSystem={enabled:!1,history:[],maxHistory:3,initialize(){this.enabled="true"===localStorage.getItem("contextEnabled"),els.contextToggle.classList.toggle("active",this.enabled)},toggle(){this.enabled=!this.enabled,localStorage.setItem("contextEnabled",this.enabled),els.contextToggle.classList.toggle("active",this.enabled),showStatus(this.enabled?"🧠 문맥 번역 활성화":"문맥 번역 비활성화","success"),this.enabled||(this.history=[])},add(e,t){this.enabled&&(this.history.push({text:e,translation:t}),this.history.length>this.maxHistory&&this.history.shift())},getContext(){return!this.enabled||0===this.history.length?"":"\n\n[Previous context]\n"+this.history.map(e=>`User: "${e.text}"\nAssistant: "${e.translation}"`).join("\n")}};
-const cacheManager={translation:new Map,tts:new Map,recentPlays:[],stats:{hits:0,misses:0},getTranslation(e){const t=this.translation.get(e);return t&&Date.now()-t.ts<36e5?(this.stats.hits++,t.data):(this.stats.misses++,null)},setTranslation(e,t){this.translation.set(e,{ts:Date.now(),data:t}),this.translation.size>100&&this.translation.delete(this.translation.keys().next().value)},getTTS(e){const t=this.tts.get(e);return t&&Date.now()-t.ts<72e5?t.blob:null},setTTS(e,t){this.tts.set(e,{ts:Date.now(),blob:t}),this.tts.size>50&&this.tts.delete(this.tts.keys().next().value)},addRecentPlay(e,t,s,a){this.recentPlays.unshift({text:e,translation:t,lang:s,engine:a}),this.recentPlays.length>10&&this.recentPlays.pop(),this.save(),updateRecentPlays()},save(){localStorage.setItem("cacheData",JSON.stringify({recentPlays:this.recentPlays,stats:this.stats}))},load(){const e=localStorage.getItem("cacheData");e&&({recentPlays:this.recentPlays,stats:this.stats}=JSON.parse(e))},clear(){this.translation.clear(),this.tts.clear(),this.recentPlays=[],this.stats={hits:0,misses:0},this.save()}};
-let currentTranslation="",currentSource="",recognition=null,isRecording=!1,realtimeTimeout=null,isRealtimeEnabled=!1,selectedVoice="nova",selectedGoogleVoice="vi-VN-Standard-A";
+const cacheManager={translation:new Map,tts:new Map,recentPlays:[],stats:{hits:0,misses:0},getTranslation(e){const t=this.translation.get(e);return t&&Date.now()-t.ts<36e5?(this.stats.hits++,t.data):(this.stats.misses++,null)},setTranslation(e,t){this.translation.set(e,{ts:Date.now(),data:t}),this.translation.size>100&&this.translation.delete(this.translation.keys().next().value)},getTTS(e){const t=this.tts.get(e);return t&&Date.now()-t.ts<72e5?t.blob:null},setTTS(e,t){this.tts.set(e,{ts:Date.now(),blob:t}),this.tts.size>50&&this.tts.delete(this.tts.keys().next().value)},addRecentPlay(e,t,s,a){this.recentPlays.unshift({text:e,translation:t,lang:s,engine:a}),this.recentPlays.length>10&&this.recentPlays.pop(),this.save(),updateRecentPlays()},save(){localStorage.setItem("cacheData",JSON.stringify({recentPlays:this.recentPlays,stats:this.stats}))},load(){const e=localStorage.getItem("cacheData");if(e){const{recentPlays:t,stats:a}=JSON.parse(e);this.recentPlays=t||[],this.stats=a||{hits:0,misses:0}}},clear(){this.translation.clear(),this.tts.clear(),this.recentPlays=[],this.stats={hits:0,misses:0},this.save()}};
+let currentTranslation="",currentSource="",recognition=null,isRecording=!1,isPronunciationEnabled=!0;
 const conversationState={isActive:!1,currentSpeaker:"A",messages:[],autoRecognition:!1},langCodeMap={Korean:"ko-KR",Vietnamese:"vi-VN",English:"en-US"};
 let audioContext=null;const audioQueue=[];let isQueuePlaying=!1;
-async function handleTranslate(){const e=els.inputText.value.trim();if(!e)return;const t=els.targetLangSelect.value,a=`${e}:${t}`,s=cacheManager.getTranslation(a);if(s)return displayTranslation(s.translation,s.pronunciation_hangul,e,!0),showStatus("📦 캐시에서 로드됨","success"),void updateStats(e.length,!0);showStatus("번역 중...","info"),els.cacheIndicator.style.display="none",usageTracker.track("translation",e.length);try{const a=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"translate",inputText:e+contextSystem.getContext(),targetLang:t})}),s=await a.json();if(s.error)throw new Error(s.error);displayTranslation(s.translation,s.pronunciation_hangul,e,!1),cacheManager.setTranslation(`${e}:${t}`,s),contextSystem.add(e,s.translation),saveToHistory(e,s.translation,els.sourceLangSelect.value,t),updateStats(e.length,!1),showStatus("번역 완료","success")}catch(e){showStatus(`번역 실패: ${e.message}`,"error")}}
-async function handleSpeak(){if(!currentTranslation)return;window.budgetExceeded&&(els.ttsEngineMode.value="google",showStatus("❌ 예산 초과. Google TTS만 사용 가능","error"));const e=els.targetLangSelect.value,t=els.ttsEngineMode.value;let a="openai";"google"===t||"Vietnamese"===e?a="google":"auto"===t&&currentTranslation.length<50?a="google":"smart"===t&&(currentTranslation.length<100||conversationState.isActive)&&(a="google");const s="google"===a?selectedGoogleVoice:selectedVoice,i=`${currentTranslation}:${e}:${a}:${s}`,o=cacheManager.getTTS(i);if(els.engineIndicator.textContent=a.charAt(0).toUpperCase(),els.engineIndicator.className=`engine-indicator ${a}`,els.engineIndicator.style.display="inline-block",o)return queueAudioBlob(o),showStatus("🔊 캐시된 음성 재생","success"),void cacheManager.addRecentPlay(currentSource,currentTranslation,e,a);showStatus("음성 생성 중...","info"),usageTracker.track("tts",currentTranslation.length,a);try{const t=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"speak",inputText:currentTranslation,language:e,useGoogleTTS:"google"===a,voice:s,voiceName:s})});if(!t.ok)throw new Error("API 응답 오류");const o=await t.blob();cacheManager.setTTS(i,o),queueAudioBlob(o),cacheManager.addRecentPlay(currentSource,currentTranslation,e,a),showStatus(`🔊 ${a} TTS 재생`,"success")}catch(e){showStatus(`음성 생성 실패: ${e.message}`,"error")}}
+async function handleTranslate(){const e=els.inputText.value.trim();if(!e)return;const t=els.targetLangSelect.value,a=`${e}:${t}`,s=cacheManager.getTranslation(a);if(s&&isPronunciationEnabled)return displayTranslation(s.translation,s.pronunciation_hangul,e,!0),showStatus("📦 캐시에서 로드됨","success"),void updateStats(!0);showStatus("번역 중...","info"),els.cacheIndicator.style.display="none",usageTracker.track("translation",e.length);try{const a=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"translate",inputText:e,targetLang:t})}),s=await a.json();if(s.error)throw new Error(s.error);displayTranslation(s.translation,s.pronunciation_hangul,e,!1),isPronunciationEnabled&&cacheManager.setTranslation(`${e}:${t}`,s),saveToHistory(e,s.translation,els.sourceLangSelect.value,t),updateStats(!1),showStatus("번역 완료","success")}catch(e){showStatus(`번역 실패: ${e.message}`,"error")}}
+async function handleSpeak(){if(!currentTranslation)return;window.budgetExceeded&&(els.ttsEngineMode.value="google",showStatus("❌ 예산 초과. Google TTS만 사용 가능","error"));const e=els.targetLangSelect.value,t=els.ttsEngineMode.value;let a="openai";"google"===t||"Vietnamese"===e?a="google":"auto"===t&&currentTranslation.length<parseInt(els.autoThreshold.value)?a="google":"smart"===t&&(currentTranslation.length<100||conversationState.isActive)&&(a="google");const s="google"===a?els.googleVoiceSelect.value:els.voiceSelect.value,i=`${currentTranslation}:${e}:${a}:${s}`,o=cacheManager.getTTS(i);if(els.engineIndicator.textContent=a.charAt(0).toUpperCase(),els.engineIndicator.className=`engine-indicator ${a}`,els.engineIndicator.style.display="inline-block",o)return queueAudioBlob(o),showStatus("🔊 캐시된 음성 재생","success"),void cacheManager.addRecentPlay(currentSource,currentTranslation,e,a);showStatus("음성 생성 중...","info"),usageTracker.track("tts",currentTranslation.length,a);try{const t=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"speak",inputText:currentTranslation,language:e,useGoogleTTS:"google"===a,voice:s,voiceName:s})});if(!t.ok)throw new Error(`API 오류: ${t.statusText}`);const o=await t.blob();cacheManager.setTTS(i,o),queueAudioBlob(o),cacheManager.addRecentPlay(currentSource,currentTranslation,e,a),showStatus(`🔊 ${a} TTS 재생`,"success")}catch(e){showStatus(`음성 생성 실패: ${e.message}`,"error")}}
 function handleVoiceTranslate(){recognition||setupSpeechRecognition(),isRecording?recognition.stop():(recognition.lang=langCodeMap[els.sourceLangSelect.value],recognition.start())}
-function displayTranslation(e,t,a,s){currentTranslation=e,currentSource=a,els.translation.textContent=e,els.pronunciation.textContent=t||"",els.speakBtn.disabled=!1,els.copyBtn.disabled=!1,els.addVocabBtn.disabled=!1,els.cacheIndicator.style.display=s?"inline-block":"none"}
-function selectVoiceType(e,t){selectedVoice=t,els.voiceSelect.value=t,document.querySelectorAll("#openai-voice-selector .voice-type-btn").forEach(e=>e.classList.remove("active")),e.currentTarget.classList.add("active"),saveSettings()}
-function selectGoogleVoice(e,t){selectedGoogleVoice=t,els.googleVoiceSelect.value=t,document.querySelectorAll("#google-voice-selector .voice-type-btn").forEach(e=>e.classList.remove("active")),e.currentTarget.classList.add("active"),saveSettings()}
+function displayTranslation(e,t,a,s){currentTranslation=e,currentSource=a,els.translation.textContent=e,els.pronunciationSection.style.display=isPronunciationEnabled?"block":"none",isPronunciationEnabled&&(els.pronunciationContent.textContent=t||""),els.speakBtn.disabled=!1,els.copyBtn.disabled=!1,els.cacheIndicator.style.display=s?"inline-block":"none"}
 function setupSpeechRecognition(){const e=window.SpeechRecognition||window.webkitSpeechRecognition;if(!e)return void showStatus("음성 인식 미지원 브라우저","error");recognition=new e,recognition.continuous=!1,recognition.interimResults=!0;let t="";recognition.onstart=()=>{isRecording=!0,t="",els.voiceBtn.classList.add("recording")},recognition.onresult=e=>{let a="";for(let s=e.resultIndex;s<e.results.length;++s)e.results[s].isFinal?t+=e.results[s][0].transcript:a+=e.results[s][0].transcript;conversationState.isActive||(els.inputText.value=t+a)},recognition.onend=()=>{isRecording=!1,els.voiceBtn.classList.remove("recording");const e=t.trim();conversationState.isActive?e?handleConversationTranslation(e):startAutoRecognition():e&&(els.inputText.value=e,handleTranslate())},recognition.onerror=e=>{showStatus(`음성 인식 오류: ${e.error}`,"error"),isRecording=!1,els.voiceBtn.classList.remove("recording")}}
 function toggleDashboard(){els.dashboardModal.classList.toggle("active"),els.dashboardModal.classList.contains("active")&&usageTracker.updateDisplay()}
 function toggleSettings(){els.settingsPanel.classList.toggle("active")}
 function toggleTheme(){const e="dark"===document.documentElement.getAttribute("data-theme")?"light":"dark";document.documentElement.setAttribute("data-theme",e),localStorage.setItem("theme",e)}
-function toggleRealtime(){isRealtimeEnabled=!isRealtimeEnabled,els.realtimeToggle.classList.toggle("active",isRealtimeEnabled),saveSettings()}
-function toggleVocabulary(){els.vocabularySection.classList.toggle("active")}
-function showAddVocabModal(){els.vocabAddModal.classList.add("active")}
-function hideAddVocabModal(){els.vocabAddModal.classList.remove("active")}
-function addVocabulary(){const e=document.getElementById("vocabWord").value,t=document.getElementById("vocabMeaning").value,a=document.getElementById("vocabLang").value;e&&t&&(vocabularySystem.add(e,t,a),hideAddVocabModal())}
-function addToVocabulary(){currentSource&&currentTranslation&&vocabularySystem.add(currentSource,currentTranslation,"Korean"===els.sourceLangSelect.value?"ko-vi":"vi-ko")}
-function removeVocab(e){confirm("단어를 삭제하시겠습니까?")&&vocabularySystem.remove(e)}
-function translateVocab(e){els.inputText.value=e,handleTranslate()}
-async function speakVocab(e,t){const a="ko"===t.substring(0,2)?"Korean":"Vietnamese",s=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"speak",inputText:e,language:a,useGoogleTTS:!0})});s.ok&&queueAudioBlob(await s.blob())}
 function swapLanguages(){const e=els.sourceLangSelect.value;els.sourceLangSelect.value=els.targetLangSelect.value,els.targetLangSelect.value=e,saveSettings()}
-function copyTranslation(){navigator.clipboard.writeText(currentTranslation).then(()=>showStatus("📋 복사 완료","success"))}
-function clearAll(){els.inputText.value="",els.translation.textContent="",els.pronunciation.textContent="",els.speakBtn.disabled=!0,els.copyBtn.disabled=!0,els.addVocabBtn.disabled=!0,els.cacheIndicator.style.display="none"}
+function copyTranslation(){navigator.clipboard.writeText(currentTranslation).then(()=>showStatus("📋 번역문 복사 완료","success"))}
+function copyInputText(){const e=els.inputText.value;e?navigator.clipboard.writeText(e).then(()=>showStatus("📋 원문 복사 완료","success")):showStatus("복사할 내용이 없습니다","warning")}
+async function pasteFromClipboard(){try{const e=await navigator.clipboard.readText();e?(els.inputText.value+=e,showStatus("📋 붙여넣기 완료","success")):showStatus("클립보드가 비어있습니다","warning")}catch(e){console.error("붙여넣기 실패:",e),showStatus("붙여넣기에 실패했습니다","error")}}
+function clearAll(){els.inputText.value="",els.translation.textContent="",els.pronunciationContent.textContent="",els.speakBtn.disabled=!0,els.copyBtn.disabled=!0,els.cacheIndicator.style.display="none"}
 function showStatus(e,t=""){els.status.textContent=e,els.status.className=`status ${t}`,setTimeout(()=>{els.status.textContent="",els.status.className="status"},3e3)}
 function clearAllCache(){confirm("모든 캐시 데이터를 삭제하시겠습니까?")&&(cacheManager.clear(),updateRecentPlays(),displayStats(),showStatus("✨ 캐시가 초기화되었습니다.","success"))}
 function switchToNormalMode(){conversationState.isActive&&stopConversation(),els.normalModeBtn.classList.add("active"),els.conversationModeBtn.classList.remove("active"),els.normalMode.classList.remove("hidden"),els.conversationMode.classList.remove("active")}
@@ -400,27 +291,29 @@ function stopConversation(){conversationState.isActive=!1,conversationState.auto
 function clearConversation(){conversationState.messages=[],updateConversationHistory()}
 function updateActiveSpeaker(){"A"===conversationState.currentSpeaker?(els.speakerCardA.classList.add("active"),els.speakerCardB.classList.remove("active")):(els.speakerCardA.classList.remove("active"),els.speakerCardB.classList.add("active"))}
 async function startAutoRecognition(){if(!conversationState.autoRecognition)return;isRecording&&(recognition.stop(),await new Promise(e=>setTimeout(e,100)));const e="A"===conversationState.currentSpeaker?els.sourceLangSelect.value:els.targetLangSelect.value;recognition.lang=langCodeMap[e],recognition.start()}
-async function handleConversationTranslation(e){const t=conversationState.currentSpeaker,a="B"===t,s=a?els.targetLangSelect.value:els.sourceLangSelect.value,i=a?els.sourceLangSelect.value:els.targetLangSelect.value;usageTracker.track("translation",e.length);const o=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"translate",inputText:e,targetLang:i})}),r=await o.json();conversationState.messages.push({speaker:t,original:e,translation:r.translation}),updateConversationHistory(),playChunkedAudio(r.chunks||[r.translation],i),conversationState.currentSpeaker="A"===t?"B":"A",updateActiveSpeaker(),setTimeout(startAutoRecognition,500)}
-function updateConversationHistory(){0===conversationState.messages.length?els.conversationHistory.innerHTML='<div style="text-align:center; padding: 20px; color: var(--text-secondary);">대화를 시작하세요</div>':(els.conversationHistory.innerHTML=conversationState.messages.map(e=>`<div class="conversation-message"><div class="message-speaker speaker-${e.speaker.toLowerCase()}">${e.speaker}</div><div class="message-content"><div class="message-original">${e.original}</div><div class="message-translation">${e.translation}</div></div></div>`).join(""),els.conversationHistory.scrollTop=els.conversationHistory.scrollHeight)}
+async function handleConversationTranslation(e){const t=conversationState.currentSpeaker,a="B"===t,s=a?els.targetLangSelect.value:els.sourceLangSelect.value,i=a?els.sourceLangSelect.value:els.targetLangSelect.value;usageTracker.track("translation",e.length),updateStats(!1);const o=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"translate",inputText:e,targetLang:i})}),r=await o.json();conversationState.messages.push({speaker:t,original:e,translation:r.translation}),updateConversationHistory(),playChunkedAudio(r.chunks||[r.translation],i),conversationState.currentSpeaker="A"===t?"B":"A",updateActiveSpeaker(),setTimeout(startAutoRecognition,500)}
+function updateConversationHistory(){0===conversationState.messages.length?els.conversationHistory.innerHTML='<div style="text-align:center; padding: 20px; color: var(--text-secondary);">대화를 시작하세요</div>':(els.conversationHistory.innerHTML=conversationState.messages.map(e=>`<div class="conversation-message"><div class="message-speaker speaker-${"A"===e.speaker?"a":"b"}">${e.speaker}</div><div class="message-content"><div class="message-original">${e.original}</div><div class="message-translation">${e.translation}</div></div></div>`).join(""),els.conversationHistory.scrollTop=els.conversationHistory.scrollHeight)}
 async function playChunkedAudio(e,t){for(const a of e){usageTracker.track("tts",a.length,"google");const e=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"speak",inputText:a,language:t,useGoogleTTS:!0,voiceName:"vi-VN-Standard-A"})});e.ok&&queueAudioBlob(await e.blob())}}
 function initAudioContext(){audioContext||(audioContext=new(window.AudioContext||window.webkitAudioContext)),"suspended"===audioContext?.state&&audioContext.resume()}
 async function playAudioBlob(e){try{initAudioContext();const t=await audioContext.decodeAudioData(await e.arrayBuffer()),a=audioContext.createBufferSource();a.buffer=t,a.connect(audioContext.destination),a.onended=playNextInQueue,a.start(0)}catch(t){const a=new Audio(URL.createObjectURL(e));a.onended=playNextInQueue,a.play()}}
 function queueAudioBlob(e){audioQueue.push(e),isQueuePlaying||playNextInQueue()}
 function playNextInQueue(){if(0===audioQueue.length)return void(isQueuePlaying=!1);isQueuePlaying=!0,playAudioBlob(audioQueue.shift())}
 function getStats(){const e=localStorage.getItem("translationStats");return e?JSON.parse(e):{totalTranslations:0,todayTranslations:0,lastDate:(new Date).toDateString()}}
-function updateStats(e,t){const a=getStats();(new Date).toDateString()!==a.lastDate&&(a.todayTranslations=0,a.lastDate=(new Date).toDateString()),a.totalTranslations++,a.todayTranslations++,localStorage.setItem("translationStats",JSON.stringify(a)),displayStats()}
+function updateStats(e){const t=getStats();(new Date).toDateString()!==t.lastDate&&(t.todayTranslations=0,t.lastDate=(new Date).toDateString()),t.totalTranslations++,t.todayTranslations++,localStorage.setItem("translationStats",JSON.stringify(t)),displayStats()}
 function displayStats(){const e=getStats();els.todayTranslations.textContent=e.todayTranslations,els.totalTranslations.textContent=e.totalTranslations;const t=cacheManager.stats.hits+cacheManager.stats.misses>0?Math.round(cacheManager.stats.hits/(cacheManager.stats.hits+cacheManager.stats.misses)*100):0;els.cacheHitRate.textContent=`${t}%`}
-function saveToHistory(e,t,a,s){const i=JSON.parse(localStorage.getItem("translationHistory")||"[]");i.unshift({source:e,translation:t,sourceLang:a,targetLang:s,time:(new Date).toLocaleString()}),i.length>50&&i.pop(),localStorage.setItem("translationHistory",JSON.stringify(i))}
-function showHistory(){const e=JSON.parse(localStorage.getItem("translationHistory")||"[]");els.historyList.innerHTML=e.length?e.map((e,t)=>`<div class="vocab-item" onclick="loadFromHistory(${t})"><div><div class="vocab-word">${e.source}</div><div class="vocab-meaning">${e.translation}</div></div><small>${e.time}</small></div>`).join(""):`<p style="text-align:center;">기록 없음</p>`,els.historyModal.classList.add("active")}
+function saveToHistory(e,t,a,s){const i=JSON.parse(localStorage.getItem("translationHistory")||"[]");i.unshift({source:e,translation:t,sourceLang:a,targetLang:s,time:(new Date).toLocaleString("ko-KR")}),i.length>50&&i.pop(),localStorage.setItem("translationHistory",JSON.stringify(i))}
+function showHistory(){const e=JSON.parse(localStorage.getItem("translationHistory")||"[]");els.historyList.innerHTML=e.length?e.map((e,t)=>`<div class="recent-play-item" onclick="loadFromHistory(${t})"><div><div class="recent-play-text" style="white-space: normal;"><b>${e.sourceLang}:</b> ${e.source}</div><div class="recent-play-text" style="white-space: normal; color: var(--primary);"><b>${e.targetLang}:</b> ${e.translation}</div></div><small style="color: var(--text-secondary);">${e.time}</small></div>`).join(""):`<p style="text-align:center;">기록 없음</p>`,els.historyModal.classList.add("active")}
 function hideHistory(){els.historyModal.classList.remove("active")}
 function loadFromHistory(e){const t=JSON.parse(localStorage.getItem("translationHistory"))[e];t&&(els.inputText.value=t.source,els.sourceLangSelect.value=t.sourceLang,els.targetLangSelect.value=t.targetLang,hideHistory(),handleTranslate())}
 function clearHistory(){confirm("모든 기록을 삭제합니까?")&&(localStorage.removeItem("translationHistory"),showHistory())}
 function updateRecentPlays(){els.recentPlays.classList.toggle("active",cacheManager.recentPlays.length>0),els.recentPlayList.innerHTML=cacheManager.recentPlays.map((e,t)=>`<div class="recent-play-item"><div class="recent-play-text">${e.text.substring(0,25)}...</div><div class="recent-play-actions"><button class="recent-play-btn" onclick="replayRecent(${t})">🔊</button><span class="engine-indicator ${e.engine}">${e.engine[0].toUpperCase()}</span></div></div>`).join("")}
-async function replayRecent(e){const t=cacheManager.recentPlays[e],a="google"===t.engine?selectedGoogleVoice:selectedVoice,s=`${t.translation}:${t.lang}:${t.engine}:${a}`,i=cacheManager.getTTS(s);if(i)return void queueAudioBlob(i);currentTranslation=t.translation,currentSource=t.text,await handleSpeak()}
+async function replayRecent(e){const t=cacheManager.recentPlays[e],a="google"===t.engine?els.googleVoiceSelect.value:els.voiceSelect.value,s=`${t.translation}:${t.lang}:${t.engine}:${a}`,i=cacheManager.getTTS(s);if(i)return void queueAudioBlob(i);currentTranslation=t.translation,currentSource=t.text,await handleSpeak()}
 function toggleRecentPlays(){const e=els.recentPlayList;e.style.display="none"===e.style.display?"block":"none"}
-function saveSettings(){localStorage.setItem("selectedVoice",selectedVoice),localStorage.setItem("selectedGoogleVoice",selectedGoogleVoice),localStorage.setItem("sourceLang",els.sourceLangSelect.value),localStorage.setItem("targetLang",els.targetLangSelect.value),localStorage.setItem("ttsEngine",els.ttsEngineMode.value),localStorage.setItem("realtimeEnabled",isRealtimeEnabled)}
-function loadSettings(){document.documentElement.setAttribute("data-theme",localStorage.getItem("theme")||"light"),isRealtimeEnabled="true"===localStorage.getItem("realtimeEnabled"),els.realtimeToggle.classList.toggle("active",isRealtimeEnabled),els.sourceLangSelect.value=localStorage.getItem("sourceLang")||"Korean",els.targetLangSelect.value=localStorage.getItem("targetLang")||"Vietnamese",els.ttsEngineMode.value=localStorage.getItem("ttsEngine")||"auto",selectedVoice=localStorage.getItem("selectedVoice")||"nova",document.querySelector(`#openai-voice-selector .voice-type-btn[onclick*="'${selectedVoice}'"]`)?.classList.add("active"),selectedGoogleVoice=localStorage.getItem("selectedGoogleVoice")||"vi-VN-Standard-A",document.querySelector(`#google-voice-selector .voice-type-btn[onclick*="'${selectedGoogleVoice}'"]`)?.classList.add("active"),document.getElementById("dailyBudget").value=localStorage.getItem("dailyBudget")||"1.00",document.getElementById("monthlyBudget").value=localStorage.getItem("monthlyBudget")||"30.00"}
-document.addEventListener("DOMContentLoaded",()=>{usageTracker.initialize(),vocabularySystem.initialize(),contextSystem.initialize(),cacheManager.load(),loadSettings(),setupSpeechRecognition(),updateRecentPlays(),updateSpeakerLanguages(),displayStats(),els.inputText.addEventListener("input",()=>{isRealtimeEnabled&&(clearTimeout(realtimeTimeout),realtimeTimeout=setTimeout(handleTranslate,1200))}),document.getElementById("dailyBudget").addEventListener("change",e=>localStorage.setItem("dailyBudget",e.target.value)),document.getElementById("monthlyBudget").addEventListener("change",e=>localStorage.setItem("monthlyBudget",e.target.value)),els.sourceLangSelect.addEventListener("change",saveSettings),els.targetLangSelect.addEventListener("change",saveSettings),["touchstart","click"].forEach(e=>document.addEventListener(e,initAudioContext,{once:!0})),showStatus("✨ 번역기 v5.0 통합 버전 준비 완료","success")});
+function saveSettings(){localStorage.setItem("ttsEngine",els.ttsEngineMode.value),localStorage.setItem("autoThreshold",els.autoThreshold.value),localStorage.setItem("voice",els.voiceSelect.value),localStorage.setItem("googleVoice",els.googleVoiceSelect.value),localStorage.setItem("volume",els.volumeControl.value),localStorage.setItem("sourceLang",els.sourceLangSelect.value),localStorage.setItem("targetLang",els.targetLangSelect.value),localStorage.setItem("pronunciationEnabled",isPronunciationEnabled)}
+function loadSettings(){document.documentElement.setAttribute("data-theme",localStorage.getItem("theme")||"light"),isPronunciationEnabled="false"!==localStorage.getItem("pronunciationEnabled"),els.pronunciationToggle.classList.toggle("active",isPronunciationEnabled),els.pronunciationSection.style.display=isPronunciationEnabled?"block":"none",els.sourceLangSelect.value=localStorage.getItem("sourceLang")||"Korean",els.targetLangSelect.value=localStorage.getItem("targetLang")||"Vietnamese",els.ttsEngineMode.value=localStorage.getItem("ttsEngine")||"auto",els.autoThreshold.value=localStorage.getItem("autoThreshold")||"50",els.thresholdValue.textContent=`${els.autoThreshold.value}자`,els.voiceSelect.value=localStorage.getItem("voice")||"nova",els.googleVoiceSelect.value=localStorage.getItem("googleVoice")||"vi-VN-Standard-A",els.volumeControl.value=localStorage.getItem("volume")||"0.8",els.volumeValue.textContent=`${100*els.volumeControl.value}%`,updateAutoModeVisibility(),document.getElementById("dailyBudget").value=localStorage.getItem("dailyBudget")||"1.00",document.getElementById("monthlyBudget").value=localStorage.getItem("monthlyBudget")||"30.00"}
+function updateAutoModeVisibility(){const e=els.ttsEngineMode.value;els.autoModeSettings.style.display="auto"===e||"smart"===e?"grid":"none"}
+function togglePronunciationView(){const e=els.pronunciationContent;e.style.display="none"===e.style.display||""===e.style.display?"block":"none",els.pronToggleIcon.textContent="block"===e.style.display?"▼":"▶"}
+document.addEventListener("DOMContentLoaded",()=>{usageTracker.initialize(),cacheManager.load(),loadSettings(),setupSpeechRecognition(),updateRecentPlays(),updateSpeakerLanguages(),displayStats(),els.ttsEngineMode.addEventListener("change",()=>{updateAutoModeVisibility(),saveSettings()}),els.autoThreshold.addEventListener("input",e=>{els.thresholdValue.textContent=`${e.target.value}자`,saveSettings()}),els.volumeControl.addEventListener("input",e=>{els.volumeValue.textContent=`${Math.round(100*e.target.value)}%`,saveSettings()}),els.voiceSelect.addEventListener("change",saveSettings),els.googleVoiceSelect.addEventListener("change",saveSettings),els.pronunciationToggle.addEventListener("click",()=>{isPronunciationEnabled=!isPronunciationEnabled,els.pronunciationToggle.classList.toggle("active",isPronunciationEnabled),els.pronunciationSection.style.display=isPronunciationEnabled?"block":"none",saveSettings(),showStatus(`발음 도우미 ${isPronunciationEnabled?"ON":"OFF"}`,"success")}),document.getElementById("dailyBudget").addEventListener("change",e=>localStorage.setItem("dailyBudget",e.target.value)),document.getElementById("monthlyBudget").addEventListener("change",e=>localStorage.setItem("monthlyBudget",e.target.value)),els.sourceLangSelect.addEventListener("change",()=>{saveSettings(),updateSpeakerLanguages()}),els.targetLangSelect.addEventListener("change",()=>{saveSettings(),updateSpeakerLanguages()}),["touchstart","click"].forEach(e=>document.addEventListener(e,initAudioContext,{once:!0})),showStatus("✨ 번역기 v5.0 통합 버전 준비 완료","success")});
 </script>
 </body>
 </html>
