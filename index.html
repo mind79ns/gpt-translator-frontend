@@ -315,5 +315,30 @@ function updateAutoModeVisibility(){const e=els.ttsEngineMode.value;els.autoMode
 function togglePronunciationView(){const e=els.pronunciationContent;e.style.display="none"===e.style.display||""===e.style.display?"block":"none",els.pronToggleIcon.textContent="block"===e.style.display?"▼":"▶"}
 document.addEventListener("DOMContentLoaded",()=>{usageTracker.initialize(),cacheManager.load(),loadSettings(),setupSpeechRecognition(),updateRecentPlays(),updateSpeakerLanguages(),displayStats(),els.ttsEngineMode.addEventListener("change",()=>{updateAutoModeVisibility(),saveSettings()}),els.autoThreshold.addEventListener("input",e=>{els.thresholdValue.textContent=`${e.target.value}자`,saveSettings()}),els.volumeControl.addEventListener("input",e=>{els.volumeValue.textContent=`${Math.round(100*e.target.value)}%`,saveSettings()}),els.voiceSelect.addEventListener("change",saveSettings),els.googleVoiceSelect.addEventListener("change",saveSettings),els.pronunciationToggle.addEventListener("click",()=>{isPronunciationEnabled=!isPronunciationEnabled,els.pronunciationToggle.classList.toggle("active",isPronunciationEnabled),els.pronunciationSection.style.display=isPronunciationEnabled?"block":"none",saveSettings(),showStatus(`발음 도우미 ${isPronunciationEnabled?"ON":"OFF"}`,"success")}),document.getElementById("dailyBudget").addEventListener("change",e=>localStorage.setItem("dailyBudget",e.target.value)),document.getElementById("monthlyBudget").addEventListener("change",e=>localStorage.setItem("monthlyBudget",e.target.value)),els.sourceLangSelect.addEventListener("change",()=>{saveSettings(),updateSpeakerLanguages()}),els.targetLangSelect.addEventListener("change",()=>{saveSettings(),updateSpeakerLanguages()}),["touchstart","click"].forEach(e=>document.addEventListener(e,initAudioContext,{once:!0})),showStatus("✨ 번역기 v5.0 통합 버전 준비 완료","success")});
 </script>
+
+<!-- ===== 설정 패널에 추가 ===== -->
+<div class="setting-item">
+  <label class="setting-label">
+    🎯 전문 분야 자동 감지
+    <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px;">
+      의료, 비즈니스, IT, 여행, 음식 분야 자동 인식
+    </div>
+  </label>
+  <div class="setting-control">
+    <div class="toggle-switch active" id="domainDetectToggle" onclick="toggleDomainDetect()"></div>
+  </div>
+</div>
+
+<div class="setting-item">
+  <label class="setting-label">
+    📝 문맥 기록 수
+  </label>
+  <div class="setting-control">
+    <input type="range" id="contextHistory" min="3" max="10" value="5" 
+           oninput="updateContextHistory(this.value)">
+    <span class="setting-value" id="contextValue">5개</span>
+  </div>
+</div>
+
 </body>
 </html>
