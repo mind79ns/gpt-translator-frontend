@@ -67,6 +67,41 @@
         .bar { flex: 1; background: var(--primary); border-radius: 4px 4px 0 0; position: relative; }
         .bar-label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--text-secondary); }
         .bar-value { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: var(--text); }
+        
+        /* 🔧 추가: 월별 비용 차트 전용 스타일 */
+        #monthlyChart .bar {
+            background: linear-gradient(135deg, #10A37F, #059669) !important;
+            min-height: 5px;
+            border-radius: 6px 6px 0 0;
+        }
+        #monthlyChart .bar-value {
+            color: white !important;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            font-size: 9px;
+            font-weight: bold;
+        }
+        #monthlyChart .bar-label {
+            font-size: 10px;
+            font-weight: 500;
+        }
+        
+        /* 모바일에서 차트 간격 조정 */
+        @media (max-width: 600px) {
+            .chart-container {
+                margin-bottom: 15px;
+                padding: 12px;
+            }
+            .simple-bar-chart {
+                height: 100px;
+                gap: 6px;
+            }
+            .bar-value {
+                font-size: 8px;
+            }
+            .bar-label {
+                font-size: 9px;
+            }
+        }
         .limit-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .limit-label { font-size: 12px; color: var(--text-secondary); }
         .limit-input { width: 100px; padding: 5px; border: 1px solid var(--border); border-radius: 5px; font-size: 12px; text-align: right; }
@@ -608,6 +643,11 @@
                 <div class="chart-title">📈 7일 사용량</div>
                 <div class="simple-bar-chart" id="weeklyChart"></div>
             </div>
+            <!-- ➕ 새로 추가: 월별 비용 차트 -->
+            <div class="chart-container">
+                <div class="chart-title">💰 월별 비용 추이 (최근 6개월)</div>
+                <div class="simple-bar-chart" id="monthlyChart"></div>
+            </div>
             <div class="limit-settings">
                 <div class="limit-title">⚠️ API 한도 관리</div>
                 <div class="limit-item">
@@ -764,9 +804,11 @@ const els={inputText:document.getElementById("inputText"),translation:document.g
 
 // 🔧 수정: 사용량 추적기에 월 비용 계산 로직 추가
 const usageTracker={data:{daily:{},monthly:{},costs:{translation:.000015,openaiTTS:.000015,googleTTS:0}},initialize(){const e=localStorage.getItem("usageData");e&&(this.data={...this.data,...JSON.parse(e)}),this.cleanOldData()},cleanOldData(){const e=Date.now()-2592e6;Object.keys(this.data.daily).forEach(t=>{new Date(t).getTime()<e&&delete this.data.daily[t]})},track(e,t,a="google"){const s=(new Date).toISOString().split("T")[0],i=s.substring(0,7);this.data.daily[s]||(this.data.daily[s]={translations:0,characters:0,cost:0,saved:0}),this.data.monthly[i]||(this.data.monthly[i]={translations:0,characters:0,cost:0,saved:0});const o=this.data.daily[s],r=this.data.monthly[i];"translation"===e?(o.translations++,r.translations++,o.characters+=t,r.characters+=t,o.cost+=t*this.data.costs.translation,r.cost+=t*this.data.costs.translation):"tts"===e&&("openai"===a?(o.cost+=t*this.data.costs.openaiTTS,r.cost+=t*this.data.costs.openaiTTS):(o.saved+=t*this.data.costs.openaiTTS,r.saved+=t*this.data.costs.openaiTTS)),this.save(),this.updateDisplay(),this.checkLimits()},save(){localStorage.setItem("usageData",JSON.stringify(this.data))},
-// 🔧 수정: updateDisplay 함수에 월 비용 표시 추가
-updateDisplay(){const e=(new Date).toISOString().split("T")[0],t=e.substring(0,7),a=this.data.daily[e]||{translations:0,cost:0,saved:0},s=this.data.monthly[t]||{translations:0,cost:0,saved:0};document.getElementById("todayUsage").textContent=a.translations,document.getElementById("monthUsage").textContent=s.translations,document.getElementById("todayCost").textContent=`$${a.cost.toFixed(4)}`,document.getElementById("monthCost").textContent=`$${s.cost.toFixed(4)}`,document.getElementById("savedCost").textContent=`$${s.saved.toFixed(4)}`,this.updateChart(),this.updateBudgetProgress()},
-updateChart(){const e=document.getElementById("weeklyChart");if(!e)return;const t=Array.from({length:7},(...[,e])=>(new Date(Date.now()-864e5*e)).toISOString().split("T")[0]).reverse(),a=Math.max(...t.map(e=>this.data.daily[e]?.translations||0),1);e.innerHTML=t.map(e=>{const t=this.data.daily[e]?.translations||0,s=t/a*100,i=(new Date(e)).toLocaleDateString("ko-KR",{weekday:"short"});return`<div class="bar" style="height: ${s}%"><span class="bar-value">${t}</span><span class="bar-label">${i}</span></div>`}).join("")},updateBudgetProgress(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1,s=Math.min(t/a*100,100);document.getElementById("budgetProgress").style.width=s+"%",document.getElementById("budgetPercentage").textContent=`${s.toFixed(1)}% 사용`},checkLimits(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1;t>=a?("switch"===(document.getElementById("limitAction")?.value)?(els.ttsEngineMode.value="google",showStatus("⚠️ 예산 도달 - Google TTS로 전환","warning")):"warn"===document.getElementById("limitAction")?.value?showStatus("⚠️ 일일 예산을 초과했습니다","warning"):"block"===document.getElementById("limitAction")?.value&&(window.budgetExceeded=!0,showStatus("⛔ 예산 초과 - 유료 기능 제한","error"))):window.budgetExceeded=!1}};
+// 🔧 수정: updateDisplay 함수에 월 비용 표시 및 월별 차트 추가
+updateDisplay(){const e=(new Date).toISOString().split("T")[0],t=e.substring(0,7),a=this.data.daily[e]||{translations:0,cost:0,saved:0},s=this.data.monthly[t]||{translations:0,cost:0,saved:0};document.getElementById("todayUsage").textContent=a.translations,document.getElementById("monthUsage").textContent=s.translations,document.getElementById("todayCost").textContent=`${a.cost.toFixed(4)}`,document.getElementById("monthCost").textContent=`${s.cost.toFixed(4)}`,document.getElementById("savedCost").textContent=`${s.saved.toFixed(4)}`,this.updateChart(),this.updateMonthlyChart(),this.updateBudgetProgress()},
+updateChart(){const e=document.getElementById("weeklyChart");if(!e)return;const t=Array.from({length:7},(...[,e])=>(new Date(Date.now()-864e5*e)).toISOString().split("T")[0]).reverse(),a=Math.max(...t.map(e=>this.data.daily[e]?.translations||0),1);e.innerHTML=t.map(e=>{const t=this.data.daily[e]?.translations||0,s=t/a*100,i=(new Date(e)).toLocaleDateString("ko-KR",{weekday:"short"});return`<div class="bar" style="height: ${s}%"><span class="bar-value">${t}</span><span class="bar-label">${i}</span></div>`}).join("")},
+// ➕ 새로 추가: 월별 비용 차트 업데이트 함수
+updateMonthlyChart(){const chartEl=document.getElementById("monthlyChart");if(!chartEl)return;const currentDate=new Date();const months=Array.from({length:6},(_,i)=>{const date=new Date(currentDate.getFullYear(),currentDate.getMonth()-i,1);return date.toISOString().substring(0,7)}).reverse();const maxCost=Math.max(...months.map(month=>this.data.monthly[month]?.cost||0),0.01);chartEl.innerHTML=months.map(month=>{const monthData=this.data.monthly[month]||{cost:0};const cost=monthData.cost;const height=maxCost>0?(cost/maxCost*100):0;const monthLabel=new Date(month+"-01").toLocaleDateString("ko-KR",{month:"short"});return`<div class="bar" style="height: ${height}%; background: linear-gradient(135deg, #10A37F, #059669);"><span class="bar-value">${cost.toFixed(3)}</span><span class="bar-label">${monthLabel}</span></div>`}).join("")},updateBudgetProgress(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1,s=Math.min(t/a*100,100);document.getElementById("budgetProgress").style.width=s+"%",document.getElementById("budgetPercentage").textContent=`${s.toFixed(1)}% 사용`},checkLimits(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1;t>=a?("switch"===(document.getElementById("limitAction")?.value)?(els.ttsEngineMode.value="google",showStatus("⚠️ 예산 도달 - Google TTS로 전환","warning")):"warn"===document.getElementById("limitAction")?.value?showStatus("⚠️ 일일 예산을 초과했습니다","warning"):"block"===document.getElementById("limitAction")?.value&&(window.budgetExceeded=!0,showStatus("⛔ 예산 초과 - 유료 기능 제한","error"))):window.budgetExceeded=!1}};
 
 // 캐시 관리자
 const cacheManager={translation:new Map,tts:new Map,recentPlays:[],stats:{hits:0,misses:0},getTranslation(e){const t=this.translation.get(e);return t&&Date.now()-t.ts<36e5?(this.stats.hits++,t.data):(this.stats.misses++,null)},setTranslation(e,t){this.translation.set(e,{ts:Date.now(),data:t}),this.translation.size>100&&this.translation.delete(this.translation.keys().next().value)},getTTS(e){const t=this.tts.get(e);return t&&Date.now()-t.ts<72e5?t.blob:null},setTTS(e,t){this.tts.set(e,{ts:Date.now(),blob:t}),this.tts.size>50&&this.tts.delete(this.tts.keys().next().value)},addRecentPlay(e,t,s,a){this.recentPlays.unshift({text:e,translation:t,lang:s,engine:a}),this.recentPlays.length>10&&this.recentPlays.pop(),this.save(),updateRecentPlays()},save(){localStorage.setItem("cacheData",JSON.stringify({recentPlays:this.recentPlays,stats:this.stats}))},load(){const e=localStorage.getItem("cacheData");if(e){const{recentPlays:t,stats:a}=JSON.parse(e);this.recentPlays=t||[],this.stats=a||{hits:0,misses:0}}},clear(){this.translation.clear(),this.tts.clear(),this.recentPlays=[],this.stats={hits:0,misses:0},this.save()}};
@@ -2182,7 +2224,7 @@ document.addEventListener("DOMContentLoaded", function() {
             document.addEventListener(event, initAudioContext, { once: true });
         });
         
-        showStatus("✅ 번역기 v6.0 - 월 비용 대시보드 추가 완료", "success");
+        showStatus("✅ 번역기 v6.0 - 월별 비용 차트 추가 완료", "success");
         
     } catch (error) {
         console.error('초기화 오류:', error);
