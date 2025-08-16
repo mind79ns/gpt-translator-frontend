@@ -22,9 +22,11 @@
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .header h1 { font-size: 18px; margin: 0; text-align: center; flex-grow: 1; }
         .header-controls { display: flex; gap: 10px; }
-        .theme-toggle, .settings-toggle, .dashboard-toggle, .ai-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 5px 10px; cursor: pointer; font-size: 16px; }
+        .theme-toggle, .settings-toggle, .dashboard-toggle, .ai-toggle, .vocab-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 5px 10px; cursor: pointer; font-size: 16px; }
         .ai-toggle { background: rgba(139, 92, 246, 0.3); border: 2px solid rgba(255,255,255,0.3); }
         .ai-toggle.active { background: rgba(139, 92, 246, 0.8); border-color: rgba(255,255,255,0.8); }
+        .vocab-toggle { background: rgba(34, 197, 94, 0.3); border: 2px solid rgba(255,255,255,0.3); }
+        .vocab-toggle.active { background: rgba(34, 197, 94, 0.8); border-color: rgba(255,255,255,0.8); }
         .language-selector { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .language-selector select { width: 40%; padding: 10px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.2); color: white; font-weight: bold; -webkit-appearance: none; appearance: none; text-align: center; }
         .language-selector select option { color: black; }
@@ -104,7 +106,7 @@
         .vocabulary-section { margin-top: 15px; }
         .vocabulary-tabs { display: flex; gap: 5px; margin-bottom: 10px; }
         .vocab-tab { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text-secondary); cursor: pointer; font-size: 11px; transition: all 0.3s; }
-        .vocab-tab.active { background: var(--ai-purple); color: white; border-color: var(--ai-purple); }
+        .vocab-tab.active { background: var(--success); color: white; border-color: var(--success); }
         .vocabulary-input-group { display: flex; gap: 8px; margin-bottom: 8px; }
         .vocabulary-input { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
         .vocabulary-input.description { width: 100%; margin-top: 5px; }
@@ -193,6 +195,7 @@
 
         .recent-plays { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 20px; display: none; }
         .recent-plays.active { display: block; }
+        .recent-plays.collapsed .recent-play-list { display: none; }
         .recent-plays-title { font-size: 13px; font-weight: bold; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
         .recent-plays-toggle { background: var(--primary); color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; }
         .recent-play-list { max-height: 150px; overflow-y: auto; }
@@ -261,10 +264,11 @@
         .status { text-align: center; font-size: 12px; color: var(--text-secondary); min-height: 20px; margin-top: 10px; }
         .status.error { color: var(--error); } .status.success { color: var(--success); } .status.warning { color: var(--warning); }
 
-        /* AI 문맥 표시 스타일 */
-        .context-preview { background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--ai-purple); padding: 10px; margin-bottom: 15px; border-radius: 8px; font-size: 12px; color: var(--text-secondary); display: none; }
-        .context-preview.active { display: block; }
-        .context-preview-title { color: var(--ai-purple); font-weight: bold; margin-bottom: 5px; }
+        /* 단어장 드롭다운 모달 */
+        .vocabulary-dropdown { display: none; position: fixed; top: 60px; right: 20px; background: var(--bg); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 3000; width: 350px; max-height: 500px; overflow-y: auto; border: 2px solid rgba(34, 197, 94, 0.2); }
+        .vocabulary-dropdown.active { display: block; }
+        .vocabulary-dropdown-header { background: linear-gradient(135deg, #22C55E, #16A34A); color: white; padding: 15px; border-radius: 14px 14px 0 0; text-align: center; font-weight: bold; }
+        .vocabulary-dropdown-content { padding: 15px; }
     </style>
 </head>
 <body>
@@ -274,6 +278,7 @@
                 <h1>GPT 번역기 Pro v6.0</h1>
                 <div class="header-controls">
                     <button class="ai-toggle" id="aiToggle" onclick="toggleAIMode()" title="AI 문맥 번역">🧠</button>
+                    <button class="vocab-toggle" id="vocabToggle" onclick="toggleVocabulary()" title="고급 단어장">📚</button>
                     <button class="dashboard-toggle" onclick="toggleDashboard()">📊</button>
                     <button class="settings-toggle" onclick="toggleSettings()">⚙️</button>
                     <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
@@ -295,8 +300,6 @@
                 <!-- AI 문맥 번역 설정 섹션 -->
                 <div class="ai-settings-section" id="aiSettingsSection">
                     <div class="ai-settings-title">🧠 AI 문맥 번역 고도화</div>
-                    
-
 
                     <div class="setting-item">
                         <label class="setting-label">번역 품질 vs 속도<small>높을수록 정확하지만 느림</small></label>
@@ -326,51 +329,6 @@
                                 <button onclick="addTerminology()" class="terminology-add-btn">➕</button>
                             </div>
                             <div class="terminology-list" id="terminologyList"></div>
-                        </div>
-                    </div>
-
-                    <div class="vocabulary-section">
-                        <label class="setting-label">📚 고급 단어장<small>단어 클릭으로 상세보기, 퀴즈, 발음연습</small></label>
-                        
-                        <div class="vocabulary-tabs">
-                            <div class="vocab-tab active" data-tab="add">📝 추가</div>
-                            <div class="vocab-tab" data-tab="list">📖 목록</div>
-                            <div class="vocab-tab" data-tab="quiz">🎯 퀴즈</div>
-                            <div class="vocab-tab" data-tab="stats">📊 통계</div>
-                        </div>
-                        
-                        <div class="vocab-content" id="vocabAdd">
-                            <div class="vocabulary-input-group">
-                                <input type="text" class="vocabulary-input" id="vocabularyOriginal" placeholder="원어 (예: Apple)">
-                                <input type="text" class="vocabulary-input" id="vocabularyTranslation" placeholder="번역어 (예: 사과)">
-                            </div>
-                            <input type="text" class="vocabulary-input description" id="vocabularyDescription" placeholder="상세 설명 (예: 빨갛고 달콤한 과일)">
-                            <button onclick="addVocabulary()" style="width: 100%; padding: 8px; background: var(--ai-purple); color: white; border: none; border-radius: 6px; font-size: 11px; margin-top: 8px;">📚 단어 추가</button>
-                        </div>
-                        
-                        <div class="vocab-content" id="vocabList" style="display: none;">
-                            <div class="vocabulary-list" id="vocabularyList"></div>
-                            <div class="vocabulary-stats" id="vocabularyStats">
-                                <span>총 단어: <strong id="totalWords">0</strong></span>
-                                <span>퀴즈 정답률: <strong id="quizAccuracy">0%</strong></span>
-                                <span>연습 시간: <strong id="practiceTime">0분</strong></span>
-                            </div>
-                        </div>
-                        
-                        <div class="vocab-content" id="vocabQuiz" style="display: none;">
-                            <button onclick="startQuiz()" style="width: 100%; padding: 12px; background: var(--success); color: white; border: none; border-radius: 8px; font-weight: bold; margin-bottom: 10px;">🎯 랜덤 퀴즈 시작</button>
-                            <button onclick="startQuiz('difficult')" style="width: 100%; padding: 12px; background: var(--warning); color: white; border: none; border-radius: 8px; font-weight: bold;">💪 어려운 단어 도전</button>
-                        </div>
-                        
-                        <div class="vocab-content" id="vocabStats" style="display: none;">
-                            <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
-                                <div style="font-size: 24px; font-weight: bold; color: var(--ai-purple); margin-bottom: 10px;" id="learningProgress">0%</div>
-                                <div style="margin-bottom: 15px;">학습 진도</div>
-                                <div style="background: var(--border); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 15px;">
-                                    <div id="progressBar" style="background: var(--ai-purple); height: 100%; width: 0%; transition: width 0.3s;"></div>
-                                </div>
-                                <div style="font-size: 12px; color: var(--text-secondary);">꾸준한 학습이 실력 향상의 비결입니다!</div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -407,9 +365,9 @@
                 </div>
             </div>
 
-            <div class="recent-plays" id="recentPlays">
-                <div class="recent-plays-title"><span>🔄 최근 재생</span><button class="recent-plays-toggle" onclick="toggleRecentPlays()">접기</button></div>
-                <div class="recent-play-list" id="recentPlayList"></div>
+            <div class="recent-plays collapsed" id="recentPlays">
+                <div class="recent-plays-title"><span>🔄 최근 재생</span><button class="recent-plays-toggle" onclick="toggleRecentPlays()" id="recentPlaysToggleBtn">펼치기</button></div>
+                <div class="recent-play-list" id="recentPlayList" style="display: none;"></div>
             </div>
             
             <div class="mode-selector">
@@ -431,11 +389,6 @@
             </div>
             
             <div class="normal-mode" id="normalMode">
-                <div class="context-preview" id="contextPreview">
-                    <div class="context-preview-title">🧠 활용될 문맥 정보:</div>
-                    <div id="contextContent"></div>
-                </div>
-                
                 <div class="input-wrapper">
                     <textarea id="inputText" placeholder="번역할 텍스트를 입력하세요..."></textarea>
                     <div class="input-actions">
@@ -471,6 +424,53 @@
             </div>
             
             <div class="status" id="status"></div>
+        </div>
+    </div>
+    
+    <!-- 단어장 드롭다운 모달 -->
+    <div class="vocabulary-dropdown" id="vocabularyDropdown">
+        <div class="vocabulary-dropdown-header">📚 고급 단어장</div>
+        <div class="vocabulary-dropdown-content">
+            <div class="vocabulary-tabs">
+                <div class="vocab-tab active" data-tab="add">📝 추가</div>
+                <div class="vocab-tab" data-tab="list">📖 목록</div>
+                <div class="vocab-tab" data-tab="quiz">🎯 퀴즈</div>
+                <div class="vocab-tab" data-tab="stats">📊 통계</div>
+            </div>
+            
+            <div class="vocab-content" id="vocabAdd">
+                <div class="vocabulary-input-group">
+                    <input type="text" class="vocabulary-input" id="vocabularyOriginal" placeholder="원어 (예: Apple)">
+                    <input type="text" class="vocabulary-input" id="vocabularyTranslation" placeholder="번역어 (예: 사과)">
+                </div>
+                <input type="text" class="vocabulary-input description" id="vocabularyDescription" placeholder="상세 설명 (예: 빨갛고 달콤한 과일)">
+                <button onclick="addVocabulary()" style="width: 100%; padding: 8px; background: var(--success); color: white; border: none; border-radius: 6px; font-size: 11px; margin-top: 8px;">📚 단어 추가</button>
+            </div>
+            
+            <div class="vocab-content" id="vocabList" style="display: none;">
+                <div class="vocabulary-list" id="vocabularyList"></div>
+                <div class="vocabulary-stats" id="vocabularyStats">
+                    <span>총 단어: <strong id="totalWords">0</strong></span>
+                    <span>퀴즈 정답률: <strong id="quizAccuracy">0%</strong></span>
+                    <span>연습 시간: <strong id="practiceTime">0분</strong></span>
+                </div>
+            </div>
+            
+            <div class="vocab-content" id="vocabQuiz" style="display: none;">
+                <button onclick="startQuiz()" style="width: 100%; padding: 12px; background: var(--success); color: white; border: none; border-radius: 8px; font-weight: bold; margin-bottom: 10px;">🎯 랜덤 퀴즈 시작</button>
+                <button onclick="startQuiz('difficult')" style="width: 100%; padding: 12px; background: var(--warning); color: white; border: none; border-radius: 8px; font-weight: bold;">💪 어려운 단어 도전</button>
+            </div>
+            
+            <div class="vocab-content" id="vocabStats" style="display: none;">
+                <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                    <div style="font-size: 24px; font-weight: bold; color: var(--success); margin-bottom: 10px;" id="learningProgress">0%</div>
+                    <div style="margin-bottom: 15px;">학습 진도</div>
+                    <div style="background: var(--border); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 15px;">
+                        <div id="progressBar" style="background: var(--success); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">꾸준한 학습이 실력 향상의 비결입니다!</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -601,7 +601,7 @@ let vocabularyStats = {
 };
 
 // DOM 요소들
-const els={inputText:document.getElementById("inputText"),translation:document.getElementById("translation"),pronunciationContent:document.getElementById("pronunciation-content"),pronunciationSection:document.getElementById("pronunciationSection"),pronToggleIcon:document.getElementById("pronToggleIcon"),status:document.getElementById("status"),voiceBtn:document.getElementById("voiceBtn"),speakBtn:document.getElementById("speakBtn"),copyBtn:document.getElementById("copyBtn"),sourceLangSelect:document.getElementById("sourceLangSelect"),targetLangSelect:document.getElementById("targetLangSelect"),voiceSelect:document.getElementById("voiceSelect"),googleVoiceSelect:document.getElementById("googleVoiceSelect"),autoDetectBadge:document.getElementById("autoDetectBadge"),settingsPanel:document.getElementById("settingsPanel"),normalMode:document.getElementById("normalMode"),conversationMode:document.getElementById("conversationMode"),normalModeBtn:document.getElementById("normalModeBtn"),conversationModeBtn:document.getElementById("conversationModeBtn"),speakerCardA:document.getElementById("speakerCardA"),speakerCardB:document.getElementById("speakerCardB"),speakerLangA:document.getElementById("speakerLangA"),speakerLangB:document.getElementById("speakerLangB"),startConversationBtn:document.getElementById("startConversationBtn"),stopConversationBtn:document.getElementById("stopConversationBtn"),conversationHistory:document.getElementById("conversationHistory"),ttsEngineMode:document.getElementById("ttsEngineMode"),cacheIndicator:document.getElementById("cacheIndicator"),engineIndicator:document.getElementById("engineIndicator"),recentPlays:document.getElementById("recentPlays"),recentPlayList:document.getElementById("recentPlayList"),dashboardModal:document.getElementById("dashboardModal"),historyModal:document.getElementById("historyModal"),historyList:document.getElementById("historyList"),todayTranslations:document.getElementById("todayTranslations"),totalTranslations:document.getElementById("totalTranslations"),cacheHitRate:document.getElementById("cacheHitRate"),autoModeSettings:document.getElementById("autoModeSettings"),autoThreshold:document.getElementById("autoThreshold"),thresholdValue:document.getElementById("thresholdValue"),volumeControl:document.getElementById("volumeControl"),volumeValue:document.getElementById("volumeValue"),pronunciationToggle:document.getElementById("pronunciationToggle"),aiToggle:document.getElementById("aiToggle"),aiContextBadge:document.getElementById("aiContextBadge"),aiIndicator:document.getElementById("aiIndicator"),translateBtn:document.getElementById("translateBtn"),translateBtnText:document.getElementById("translateBtnText"),contextPreview:document.getElementById("contextPreview"),contextContent:document.getElementById("contextContent"),qualitySlider:document.getElementById("qualitySlider"),aiSettingsSection:document.getElementById("aiSettingsSection"),vocabularyOriginal:document.getElementById("vocabularyOriginal"),vocabularyTranslation:document.getElementById("vocabularyTranslation"),vocabularyDescription:document.getElementById("vocabularyDescription"),vocabularyList:document.getElementById("vocabularyList"),vocabularyStats:document.getElementById("vocabularyStats"),wordDetailModal:document.getElementById("wordDetailModal"),quizModal:document.getElementById("quizModal"),practiceModal:document.getElementById("practiceModal")};
+const els={inputText:document.getElementById("inputText"),translation:document.getElementById("translation"),pronunciationContent:document.getElementById("pronunciation-content"),pronunciationSection:document.getElementById("pronunciationSection"),pronToggleIcon:document.getElementById("pronToggleIcon"),status:document.getElementById("status"),voiceBtn:document.getElementById("voiceBtn"),speakBtn:document.getElementById("speakBtn"),copyBtn:document.getElementById("copyBtn"),sourceLangSelect:document.getElementById("sourceLangSelect"),targetLangSelect:document.getElementById("targetLangSelect"),voiceSelect:document.getElementById("voiceSelect"),googleVoiceSelect:document.getElementById("googleVoiceSelect"),autoDetectBadge:document.getElementById("autoDetectBadge"),settingsPanel:document.getElementById("settingsPanel"),normalMode:document.getElementById("normalMode"),conversationMode:document.getElementById("conversationMode"),normalModeBtn:document.getElementById("normalModeBtn"),conversationModeBtn:document.getElementById("conversationModeBtn"),speakerCardA:document.getElementById("speakerCardA"),speakerCardB:document.getElementById("speakerCardB"),speakerLangA:document.getElementById("speakerLangA"),speakerLangB:document.getElementById("speakerLangB"),startConversationBtn:document.getElementById("startConversationBtn"),stopConversationBtn:document.getElementById("stopConversationBtn"),conversationHistory:document.getElementById("conversationHistory"),ttsEngineMode:document.getElementById("ttsEngineMode"),cacheIndicator:document.getElementById("cacheIndicator"),engineIndicator:document.getElementById("engineIndicator"),recentPlays:document.getElementById("recentPlays"),recentPlayList:document.getElementById("recentPlayList"),dashboardModal:document.getElementById("dashboardModal"),historyModal:document.getElementById("historyModal"),historyList:document.getElementById("historyList"),todayTranslations:document.getElementById("todayTranslations"),totalTranslations:document.getElementById("totalTranslations"),cacheHitRate:document.getElementById("cacheHitRate"),autoModeSettings:document.getElementById("autoModeSettings"),autoThreshold:document.getElementById("autoThreshold"),thresholdValue:document.getElementById("thresholdValue"),volumeControl:document.getElementById("volumeControl"),volumeValue:document.getElementById("volumeValue"),pronunciationToggle:document.getElementById("pronunciationToggle"),aiToggle:document.getElementById("aiToggle"),aiContextBadge:document.getElementById("aiContextBadge"),aiIndicator:document.getElementById("aiIndicator"),translateBtn:document.getElementById("translateBtn"),translateBtnText:document.getElementById("translateBtnText"),qualitySlider:document.getElementById("qualitySlider"),aiSettingsSection:document.getElementById("aiSettingsSection"),vocabularyOriginal:document.getElementById("vocabularyOriginal"),vocabularyTranslation:document.getElementById("vocabularyTranslation"),vocabularyDescription:document.getElementById("vocabularyDescription"),vocabularyList:document.getElementById("vocabularyList"),vocabularyStats:document.getElementById("vocabularyStats"),wordDetailModal:document.getElementById("wordDetailModal"),quizModal:document.getElementById("quizModal"),practiceModal:document.getElementById("practiceModal")};
 
 // 사용량 추적기
 const usageTracker={data:{daily:{},monthly:{},costs:{translation:.000015,openaiTTS:.000015,googleTTS:0}},initialize(){const e=localStorage.getItem("usageData");e&&(this.data={...this.data,...JSON.parse(e)}),this.cleanOldData()},cleanOldData(){const e=Date.now()-2592e6;Object.keys(this.data.daily).forEach(t=>{new Date(t).getTime()<e&&delete this.data.daily[t]})},track(e,t,a="google"){const s=(new Date).toISOString().split("T")[0],i=s.substring(0,7);this.data.daily[s]||(this.data.daily[s]={translations:0,characters:0,cost:0,saved:0}),this.data.monthly[i]||(this.data.monthly[i]={translations:0,characters:0,cost:0,saved:0});const o=this.data.daily[s],r=this.data.monthly[i];"translation"===e?(o.translations++,r.translations++,o.characters+=t,r.characters+=t,o.cost+=t*this.data.costs.translation,r.cost+=t*this.data.costs.translation):"tts"===e&&("openai"===a?(o.cost+=t*this.data.costs.openaiTTS,r.cost+=t*this.data.costs.openaiTTS):(o.saved+=t*this.data.costs.openaiTTS,r.saved+=t*this.data.costs.openaiTTS)),this.save(),this.updateDisplay(),this.checkLimits()},save(){localStorage.setItem("usageData",JSON.stringify(this.data))},updateDisplay(){const e=(new Date).toISOString().split("T")[0],t=e.substring(0,7),a=this.data.daily[e]||{translations:0,cost:0,saved:0},s=this.data.monthly[t]||{translations:0,cost:0,saved:0};document.getElementById("todayUsage").textContent=a.translations,document.getElementById("monthUsage").textContent=s.translations,document.getElementById("todayCost").textContent=`$${a.cost.toFixed(4)}`,document.getElementById("savedCost").textContent=`$${s.saved.toFixed(4)}`,this.updateChart(),this.updateBudgetProgress()},updateChart(){const e=document.getElementById("weeklyChart");if(!e)return;const t=Array.from({length:7},(...[,e])=>(new Date(Date.now()-864e5*e)).toISOString().split("T")[0]).reverse(),a=Math.max(...t.map(e=>this.data.daily[e]?.translations||0),1);e.innerHTML=t.map(e=>{const t=this.data.daily[e]?.translations||0,s=t/a*100,i=(new Date(e)).toLocaleDateString("ko-KR",{weekday:"short"});return`<div class="bar" style="height: ${s}%"><span class="bar-value">${t}</span><span class="bar-label">${i}</span></div>`}).join("")},updateBudgetProgress(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1,s=Math.min(t/a*100,100);document.getElementById("budgetProgress").style.width=s+"%",document.getElementById("budgetPercentage").textContent=`${s.toFixed(1)}% 사용`},checkLimits(){const e=(new Date).toISOString().split("T")[0],t=this.data.daily[e]?.cost||0,a=parseFloat(document.getElementById("dailyBudget")?.value)||1;t>=a?("switch"===(document.getElementById("limitAction")?.value)?(els.ttsEngineMode.value="google",showStatus("⚠️ 예산 도달 - Google TTS로 전환","warning")):"warn"===document.getElementById("limitAction")?.value?showStatus("⚠️ 일일 예산을 초과했습니다","warning"):"block"===document.getElementById("limitAction")?.value&&(window.budgetExceeded=!0,showStatus("⛔ 예산 초과 - 유료 기능 제한","error"))):window.budgetExceeded=!1}};
@@ -610,6 +610,8 @@ const usageTracker={data:{daily:{},monthly:{},costs:{translation:.000015,openaiT
 const cacheManager={translation:new Map,tts:new Map,recentPlays:[],stats:{hits:0,misses:0},getTranslation(e){const t=this.translation.get(e);return t&&Date.now()-t.ts<36e5?(this.stats.hits++,t.data):(this.stats.misses++,null)},setTranslation(e,t){this.translation.set(e,{ts:Date.now(),data:t}),this.translation.size>100&&this.translation.delete(this.translation.keys().next().value)},getTTS(e){const t=this.tts.get(e);return t&&Date.now()-t.ts<72e5?t.blob:null},setTTS(e,t){this.tts.set(e,{ts:Date.now(),blob:t}),this.tts.size>50&&this.tts.delete(this.tts.keys().next().value)},addRecentPlay(e,t,s,a){this.recentPlays.unshift({text:e,translation:t,lang:s,engine:a}),this.recentPlays.length>10&&this.recentPlays.pop(),this.save(),updateRecentPlays()},save(){localStorage.setItem("cacheData",JSON.stringify({recentPlays:this.recentPlays,stats:this.stats}))},load(){const e=localStorage.getItem("cacheData");if(e){const{recentPlays:t,stats:a}=JSON.parse(e);this.recentPlays=t||[],this.stats=a||{hits:0,misses:0}}},clear(){this.translation.clear(),this.tts.clear(),this.recentPlays=[],this.stats={hits:0,misses:0},this.save()}};
 
 let currentTranslation="",currentSource="",recognition=null,isRecording=!1,isPronunciationEnabled=!0;
+// ✅ 단어장 전용 음성인식 객체 (충돌 방지)
+let practiceRecognition=null;
 const conversationState={isActive:!1,currentSpeaker:"A",messages:[],autoRecognition:!1},langCodeMap={Korean:"ko-KR",Vietnamese:"vi-VN",English:"en-US"};
 let audioContext=null;const audioQueue=[];let isQueuePlaying=!1;
 
@@ -681,6 +683,7 @@ function updateTerminologyList() {
         </div>`
     ).join('');
 }
+
 function addVocabulary() {
     const original = els.vocabularyOriginal.value.trim();
     const translation = els.vocabularyTranslation.value.trim();
@@ -1017,6 +1020,21 @@ async function listenPracticeWord() {
     await speakVocabularyWord(practiceState.currentWord.original);
 }
 
+// ✅ 단어장 전용 음성인식 설정 (충돌 방지)
+function setupPracticeRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        console.error('음성 인식을 지원하지 않는 브라우저입니다');
+        return false;
+    }
+    
+    practiceRecognition = new SpeechRecognition();
+    practiceRecognition.continuous = false;
+    practiceRecognition.interimResults = true;
+    
+    return true;
+}
+
 // ✅ 마이크/녹음 기능 완전 수정
 function toggleRecording() {
     if (!practiceState.currentWord) return;
@@ -1033,11 +1051,7 @@ function toggleRecording() {
 }
 
 function startPracticeRecording() {
-    if (!recognition) {
-        setupSpeechRecognition();
-    }
-    
-    if (!recognition) {
+    if (!practiceRecognition && !setupPracticeRecognition()) {
         showStatus("음성 인식을 지원하지 않는 브라우저입니다", "error");
         return;
     }
@@ -1060,12 +1074,10 @@ function startPracticeRecording() {
         recordBtn.classList.add('recording');
         recordBtn.textContent = '⏹️';
         
-        recognition.lang = langCode;
-        recognition.continuous = false;
-        recognition.interimResults = true;
+        practiceRecognition.lang = langCode;
         
-        // 발음 연습 전용 이벤트 핸들러
-        recognition.onresult = function(event) {
+        // 단어장 전용 이벤트 핸들러
+        practiceRecognition.onresult = function(event) {
             let transcript = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 if (event.results[i].isFinal) {
@@ -1078,21 +1090,21 @@ function startPracticeRecording() {
             }
         };
         
-        recognition.onend = function() {
+        practiceRecognition.onend = function() {
             stopPracticeRecording();
         };
         
-        recognition.onerror = function(event) {
-            console.error('음성 인식 오류:', event.error);
+        practiceRecognition.onerror = function(event) {
+            console.error('단어장 음성 인식 오류:', event.error);
             showStatus(`음성 인식 오류: ${event.error}`, "error");
             stopPracticeRecording();
         };
         
-        recognition.start();
+        practiceRecognition.start();
         showStatus("🎤 발음을 시작하세요...", "info");
         
     } catch (error) {
-        console.error('녹음 시작 오류:', error);
+        console.error('단어장 녹음 시작 오류:', error);
         showStatus("녹음 시작에 실패했습니다", "error");
         stopPracticeRecording();
     }
@@ -1105,8 +1117,9 @@ function stopPracticeRecording() {
     recordBtn.classList.remove('recording');
     recordBtn.textContent = '🎤';
     
-    if (recognition && recognition.abort) {
-        recognition.abort();
+    // ✅ 단어장 전용 recognition 중단
+    if (practiceRecognition && practiceRecognition.abort) {
+        practiceRecognition.abort();
     }
     
     // 녹음 시간 계산
@@ -1224,6 +1237,16 @@ function closePractice() {
     // 녹음 중이면 중지
     if (practiceState.isRecording) {
         stopPracticeRecording();
+    }
+    
+    // ✅ 단어장 전용 recognition 정리
+    if (practiceRecognition) {
+        try {
+            practiceRecognition.abort();
+        } catch(e) {
+            console.log('practiceRecognition 중단 중 오류:', e);
+        }
+        practiceRecognition = null;
     }
     
     els.practiceModal.classList.remove('active');
@@ -1489,15 +1512,55 @@ function generatePronunciationTips(word) {
     }
 }
 
-function generatePronunciationFeedback() {
-    const feedbacks = [
-        "발음이 정확합니다! 계속 연습하세요.",
-        "조금 더 명확하게 발음해보세요.",
-        "입 모양에 주의하여 다시 시도해보세요.",
-        "천천히 또박또박 발음해보세요.",
-        "좋습니다! 자신감을 가지고 말해보세요."
-    ];
-    return feedbacks[Math.floor(Math.random() * feedbacks.length)];
+// ✅ 단어장 드롭다운 토글 함수
+function toggleVocabulary() {
+    const vocabDropdown = document.getElementById('vocabularyDropdown');
+    const vocabToggle = document.getElementById('vocabToggle');
+    
+    vocabDropdown.classList.toggle('active');
+    vocabToggle.classList.toggle('active');
+    
+    if (vocabDropdown.classList.contains('active')) {
+        updateVocabularyList();
+        updateVocabularyStats();
+        
+        // 다른 모달들 닫기
+        const dashboardModal = document.getElementById('dashboardModal');
+        const settingsPanel = document.getElementById('settingsPanel');
+        if (dashboardModal) dashboardModal.classList.remove('active');
+        if (settingsPanel) settingsPanel.classList.remove('active');
+        
+        // 외부 클릭 시 닫기 이벤트 추가
+        setTimeout(() => {
+            document.addEventListener('click', closeVocabularyOnOutsideClick);
+        }, 100);
+    } else {
+        document.removeEventListener('click', closeVocabularyOnOutsideClick);
+    }
+}
+
+function closeVocabularyOnOutsideClick(event) {
+    const vocabDropdown = document.getElementById('vocabularyDropdown');
+    const vocabToggle = document.getElementById('vocabToggle');
+    
+    if (!vocabDropdown.contains(event.target) && !vocabToggle.contains(event.target)) {
+        vocabDropdown.classList.remove('active');
+        vocabToggle.classList.remove('active');
+        document.removeEventListener('click', closeVocabularyOnOutsideClick);
+    }
+}
+
+function toggleRecentPlays(){
+    const recentPlayList = document.getElementById('recentPlayList');
+    const toggleBtn = document.getElementById('recentPlaysToggleBtn');
+    
+    if (recentPlayList.style.display === 'none') {
+        recentPlayList.style.display = 'block';
+        toggleBtn.textContent = '접기';
+    } else {
+        recentPlayList.style.display = 'none';
+        toggleBtn.textContent = '펼치기';
+    }
 }
 
 // AI 문맥 번역 함수들
@@ -1510,35 +1573,12 @@ function toggleAIMode() {
     els.aiSettingsSection.style.display = aiContextMode ? 'block' : 'none';
     
     if (aiContextMode) {
-        updateContextPreview();
         showStatus("🧠 AI 문맥 번역 모드 활성화", "success");
     } else {
-        els.contextPreview.classList.remove('active');
         showStatus("📝 일반 번역 모드로 전환", "info");
     }
     
     saveAISettings();
-}
-
-function updateContextPreview() {
-    if (!aiContextMode) {
-        els.contextPreview.classList.remove('active');
-        return;
-    }
-    
-    const recentContext = translationContext.slice(-5); // 최근 5개 고정
-    if (recentContext.length === 0) {
-        els.contextPreview.classList.remove('active');
-        return;
-    }
-    
-    els.contextContent.innerHTML = recentContext.map(ctx => 
-        `<div style="margin-bottom: 3px; font-size: 11px;">
-            <span style="color: var(--text);">${ctx.source.substring(0, 30)}...</span> 
-            → <span style="color: var(--ai-purple);">${ctx.translation.substring(0, 30)}...</span>
-        </div>`
-    ).join('');
-    els.contextPreview.classList.add('active');
 }
 
 function buildContextualPrompt(inputText, targetLang) {
@@ -1652,8 +1692,6 @@ async function handleTranslate(){
             if (translationContext.length > 20) {
                 translationContext = translationContext.slice(-20);
             }
-            
-            updateContextPreview();
         }
         
         if (isPronunciationEnabled) {
@@ -1711,7 +1749,6 @@ function loadAISettings() {
             
             // 전문용어 목록 업데이트
             updateTerminologyList();
-            updateContextPreview();
         } catch (e) {
             console.error('AI 설정 로드 실패:', e);
         }
@@ -1730,7 +1767,7 @@ function swapLanguages(){const e=els.sourceLangSelect.value;els.sourceLangSelect
 function copyTranslation(){navigator.clipboard.writeText(currentTranslation).then(()=>showStatus("📋 번역문 복사 완료","success"))}
 function copyInputText(){const e=els.inputText.value;e?navigator.clipboard.writeText(e).then(()=>showStatus("📋 원문 복사 완료","success")):showStatus("복사할 내용이 없습니다","warning")}
 async function pasteFromClipboard(){try{const e=await navigator.clipboard.readText();e?(els.inputText.value+=e,showStatus("📋 붙여넣기 완료","success")):showStatus("클립보드가 비어있습니다","warning")}catch(e){console.error("붙여넣기 실패:",e),showStatus("붙여넣기에 실패했습니다","error")}}
-function clearAll(){els.inputText.value="",els.translation.textContent="",els.pronunciationContent.textContent="",els.speakBtn.disabled=!0,els.copyBtn.disabled=!0,els.cacheIndicator.style.display="none",els.aiIndicator.style.display="none",els.contextPreview.classList.remove("active")}
+function clearAll(){els.inputText.value="",els.translation.textContent="",els.pronunciationContent.textContent="",els.speakBtn.disabled=!0,els.copyBtn.disabled=!0,els.cacheIndicator.style.display="none",els.aiIndicator.style.display="none"}
 function showStatus(e,t=""){els.status.textContent=e,els.status.className=`status ${t}`,setTimeout(()=>{els.status.textContent="",els.status.className="status"},3e3)}
 function clearAllCache(){confirm("모든 캐시 데이터를 삭제하시겠습니까?")&&(cacheManager.clear(),updateRecentPlays(),displayStats(),showStatus("✨ 캐시가 초기화되었습니다.","success"))}
 function switchToNormalMode(){conversationState.isActive&&stopConversation(),els.normalModeBtn.classList.add("active"),els.conversationModeBtn.classList.remove("active"),els.normalMode.classList.remove("hidden"),els.conversationMode.classList.remove("active")}
@@ -1756,9 +1793,27 @@ function showHistory(){const e=JSON.parse(localStorage.getItem("translationHisto
 function hideHistory(){els.historyModal.classList.remove("active")}
 function loadFromHistory(e){const t=JSON.parse(localStorage.getItem("translationHistory"))[e];t&&(els.inputText.value=t.source,els.sourceLangSelect.value=t.sourceLang,els.targetLangSelect.value=t.targetLang,hideHistory(),handleTranslate())}
 function clearHistory(){confirm("모든 기록을 삭제합니까?")&&(localStorage.removeItem("translationHistory"),showHistory())}
-function updateRecentPlays(){els.recentPlays.classList.toggle("active",cacheManager.recentPlays.length>0),els.recentPlayList.innerHTML=cacheManager.recentPlays.map((e,t)=>`<div class="recent-play-item"><div class="recent-play-text">${e.text.substring(0,25)}...</div><div class="recent-play-actions"><button class="recent-play-btn" onclick="replayRecent(${t})">🔊</button><span class="engine-indicator ${e.engine}">${e.engine[0].toUpperCase()}</span></div></div>`).join("")}
+
+function updateRecentPlays(){
+    const recentPlaysEl = els.recentPlays;
+    const recentPlayListEl = els.recentPlayList;
+    
+    // 최근 재생 항목이 있을 때만 표시하되, 기본은 접힌 상태
+    if (cacheManager.recentPlays.length > 0) {
+        recentPlaysEl.classList.add("active");
+        recentPlayListEl.innerHTML = cacheManager.recentPlays.map((e,t)=>`<div class="recent-play-item"><div class="recent-play-text">${e.text.substring(0,25)}...</div><div class="recent-play-actions"><button class="recent-play-btn" onclick="replayRecent(${t})">🔊</button><span class="engine-indicator ${e.engine}">${e.engine[0].toUpperCase()}</span></div></div>`).join("");
+        
+        // 기본 접힌 상태 유지
+        if (!recentPlayListEl.style.display || recentPlayListEl.style.display === 'none') {
+            recentPlayListEl.style.display = 'none';
+            document.getElementById('recentPlaysToggleBtn').textContent = '펼치기';
+        }
+    } else {
+        recentPlaysEl.classList.remove("active");
+    }
+}
+
 async function replayRecent(e){const t=cacheManager.recentPlays[e],a="google"===t.engine?els.googleVoiceSelect.value:els.voiceSelect.value,s=`${t.translation}:${t.lang}:${t.engine}:${a}`,i=cacheManager.getTTS(s);if(i)return void queueAudioBlob(i);currentTranslation=t.translation,currentSource=t.text,await handleSpeak()}
-function toggleRecentPlays(){const e=els.recentPlayList;e.style.display="none"===e.style.display?"block":"none"}
 function saveSettings(){localStorage.setItem("ttsEngine",els.ttsEngineMode.value),localStorage.setItem("autoThreshold",els.autoThreshold.value),localStorage.setItem("voice",els.voiceSelect.value),localStorage.setItem("googleVoice",els.googleVoiceSelect.value),localStorage.setItem("volume",els.volumeControl.value),localStorage.setItem("sourceLang",els.sourceLangSelect.value),localStorage.setItem("targetLang",els.targetLangSelect.value),localStorage.setItem("pronunciationEnabled",isPronunciationEnabled)}
 function loadSettings(){document.documentElement.setAttribute("data-theme",localStorage.getItem("theme")||"light"),isPronunciationEnabled="false"!==localStorage.getItem("pronunciationEnabled"),els.pronunciationToggle.classList.toggle("active",isPronunciationEnabled),els.pronunciationSection.style.display=isPronunciationEnabled?"block":"none",els.sourceLangSelect.value=localStorage.getItem("sourceLang")||"Korean",els.targetLangSelect.value=localStorage.getItem("targetLang")||"Vietnamese",els.ttsEngineMode.value=localStorage.getItem("ttsEngine")||"auto",els.autoThreshold.value=localStorage.getItem("autoThreshold")||"50",els.thresholdValue.textContent=`${els.autoThreshold.value}자`,els.voiceSelect.value=localStorage.getItem("voice")||"nova",els.googleVoiceSelect.value=localStorage.getItem("googleVoice")||"vi-VN-Standard-A",els.volumeControl.value=localStorage.getItem("volume")||"0.8",els.volumeValue.textContent=`${Math.round(100*els.volumeControl.value)}%`,updateAutoModeVisibility(),document.getElementById("dailyBudget").value=localStorage.getItem("dailyBudget")||"1.00",document.getElementById("monthlyBudget").value=localStorage.getItem("monthlyBudget")||"30.00"}
 function updateAutoModeVisibility(){const e=els.ttsEngineMode.value;els.autoModeSettings.style.display="auto"===e||"smart"===e?"grid":"none"}
@@ -1785,6 +1840,7 @@ window.toggleAIMode = toggleAIMode;
 window.switchVocabTab = switchVocabTab;
 window.addTerminology = addTerminology;
 window.removeTerminology = removeTerminology;
+window.toggleVocabulary = toggleVocabulary;
 
 // ✅ 초기화
 document.addEventListener("DOMContentLoaded", function() {
@@ -1898,15 +1954,6 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         });
         
-        // 입력 텍스트 변경 시 문맥 미리보기 업데이트
-        if (els.inputText) {
-            els.inputText.addEventListener('input', function() {
-                if (aiContextMode) {
-                    updateContextPreview();
-                }
-            });
-        }
-        
         // 전문용어 입력 필드 엔터키 이벤트 (간소화)
         const terminologyInputEl = document.getElementById('terminologyInput');
         
@@ -1973,7 +2020,7 @@ document.addEventListener("DOMContentLoaded", function() {
             document.addEventListener(event, initAudioContext, { once: true });
         });
         
-        showStatus("✅ 번역기 v6.0 - 전문용어 UI 간소화 완료", "success");
+        showStatus("✅ 번역기 v6.0 - UI 개선 및 마이크 충돌 해결 완료", "success");
         
     } catch (error) {
         console.error('초기화 오류:', error);
