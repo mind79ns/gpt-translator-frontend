@@ -107,9 +107,9 @@
         .vocabulary-tabs { display: flex; gap: 5px; margin-bottom: 10px; }
         .vocab-tab { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text-secondary); cursor: pointer; font-size: 11px; transition: all 0.3s; }
         .vocab-tab.active { background: var(--success); color: white; border-color: var(--success); }
-        .vocabulary-input-group { display: flex; gap: 8px; margin-bottom: 8px; }
-        .vocabulary-input { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
-        .vocabulary-input.description { width: 100%; margin-top: 5px; }
+        .vocabulary-input-group { display: flex; gap: 8px; margin-bottom: 8px; width: 100%; max-width: 100%; }
+        .vocabulary-input { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; width: 100%; max-width: 100%; box-sizing: border-box; min-width: 0; }
+        .vocabulary-input.description { width: 100%; max-width: 100%; margin-top: 5px; box-sizing: border-box; }
         .vocabulary-list { max-height: 120px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px; }
         .vocabulary-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--card-bg); border-radius: 6px; margin-bottom: 5px; cursor: pointer; transition: all 0.3s; }
         .vocabulary-item:hover { transform: translateX(3px); background: rgba(139, 92, 246, 0.1); }
@@ -288,9 +288,9 @@
     background: var(--bg); 
     border-radius: 20px; 
     box-shadow: 0 20px 60px rgba(0,0,0,0.3); 
-    width: 95%; 
-    max-width: 500px; 
-    max-height: 85vh; 
+    width: 98%; 
+    max-width: 750px; 
+    max-height: 90vh; 
     overflow-y: auto; 
     border: 2px solid rgba(34, 197, 94, 0.2);
     margin: 10px;
