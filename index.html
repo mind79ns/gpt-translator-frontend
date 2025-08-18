@@ -19,9 +19,9 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); min-height: 100vh; padding: 10px; }
         .container { max-width: 500px; margin: 0 auto; background: var(--bg); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
         .header { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; padding: 20px; text-align: center; }
-        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .header h1 { font-size: 18px; margin: 0; text-align: center; flex-grow: 1; }
-        .header-controls { display: flex; gap: 10px; }
+        .header-title { text-align: center; margin-bottom: 15px; }
+        .header h1 { font-size: 18px; margin: 0; text-align: center; }
+        .header-controls { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
         .theme-toggle, .settings-toggle, .dashboard-toggle, .ai-toggle, .vocab-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 5px 10px; cursor: pointer; font-size: 16px; }
         .ai-toggle { background: rgba(139, 92, 246, 0.3); border: 2px solid rgba(255,255,255,0.3); }
         .ai-toggle.active { background: rgba(139, 92, 246, 0.8); border-color: rgba(255,255,255,0.8); }
@@ -806,16 +806,18 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="header-top">
+            <!-- 제목을 별도 줄로 -->
+            <div class="header-title">
                 <h1>GPT 번역기 Pro v6.0</h1>
-                <div class="header-controls">
-                    <button class="ai-toggle" id="aiToggle" onclick="toggleAIMode()" title="AI 문맥 번역">🧠</button>
-                    <button class="vocab-toggle" id="vocabToggle" onclick="toggleVocabulary()" title="고급 단어장">📚</button>
-                    <button class="dashboard-toggle" onclick="toggleDashboard()">📊</button>
-                    <button class="settings-toggle" onclick="toggleSettings()">⚙️</button>
-                    <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
-                    <button class="login-toggle" id="loginToggle" onclick="toggleAuth()" title="로그인/회원가입">👤</button>
-                </div>
+            </div>
+            <!-- 아이콘들을 별도 줄로 -->
+            <div class="header-controls">
+                <button class="ai-toggle" id="aiToggle" onclick="toggleAIMode()" title="AI 문맥 번역">🧠</button>
+                <button class="vocab-toggle" id="vocabToggle" onclick="toggleVocabulary()" title="고급 단어장">📚</button>
+                <button class="dashboard-toggle" onclick="toggleDashboard()">📊</button>
+                <button class="settings-toggle" onclick="toggleSettings()">⚙️</button>
+                <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+                <button class="login-toggle" id="loginToggle" onclick="toggleAuth()" title="로그인/회원가입">👤</button>
             </div>
             <div class="language-selector">
                 <select id="sourceLangSelect"><option value="Korean">한국어</option><option value="Vietnamese">베트남어</option><option value="English">영어</option></select>
@@ -1526,24 +1528,48 @@ function setupAuthEventListeners() {
     }
 }
 
-// 🔐 인증 모달 토글
+// 🔐 인증 모달 토글 - 478행부터 수정
 function toggleAuth() {
+    console.log('[Auth] toggleAuth 호출됨'); // 디버그 로그 추가
+    
     const authModal = document.getElementById('authModal');
     const loginToggle = document.getElementById('loginToggle');
     
+    // 🔧 수정: authModal 존재 여부 확인
+    if (!authModal) {
+        console.error('[Auth] authModal을 찾을 수 없습니다');
+        showStatus("인증 모달을 찾을 수 없습니다", "error");
+        return;
+    }
+    
     if (currentUser) {
         // 로그인된 상태에서는 API 키 관리 모달 열기
+        console.log('[Auth] 로그인된 사용자 - API 키 관리 모달 열기');
         toggleApiKeys();
         return;
     }
     
-    authModal.classList.toggle('active');
+    // 🔧 수정: 모달 토글 로직 강화
+    const isCurrentlyActive = authModal.classList.contains('active');
+    console.log('[Auth] 현재 모달 상태:', isCurrentlyActive ? '열림' : '닫힌');
     
-    if (authModal.classList.contains('active')) {
+    if (isCurrentlyActive) {
+        authModal.classList.remove('active');
+        console.log('[Auth] 모달 닫기');
+    } else {
+        authModal.classList.add('active');
+        console.log('[Auth] 모달 열기');
+        
         // 다른 모달들 닫기
-        document.getElementById('dashboardModal')?.classList.remove('active');
-        document.getElementById('settingsPanel')?.classList.remove('active');
-        document.getElementById('vocabularyDropdown')?.classList.remove('active');
+        const dashboardModal = document.getElementById('dashboardModal');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const vocabularyDropdown = document.getElementById('vocabularyDropdown');
+        
+        if (dashboardModal) dashboardModal.classList.remove('active');
+        if (settingsPanel) settingsPanel.classList.remove('active');
+        if (vocabularyDropdown) vocabularyDropdown.classList.remove('active');
+        
+        console.log('[Auth] 다른 모달들 닫기 완료');
     }
 }
 
@@ -3938,6 +3964,22 @@ window.listenPracticeWord = listenPracticeWord;
 window.toggleRecording = toggleRecording;
 window.nextPracticeWord = nextPracticeWord;
 window.closePractice = closePractice;
+// 🔧 추가: 인증 관련 전역 함수들
+window.toggleAuth = toggleAuth;
+window.toggleApiKeys = toggleApiKeys;
+window.handleLogin = handleLogin;
+window.handleRegister = handleRegister;
+window.continueAsGuest = continueAsGuest;
+window.showForgotPassword = showForgotPassword;
+window.showLoginForm = showLoginForm;
+window.handleForgotPassword = handleForgotPassword;
+window.switchAuthTab = switchAuthTab;
+window.saveOpenAIKey = saveOpenAIKey;
+window.saveGoogleKey = saveGoogleKey;
+window.testOpenAIKey = testOpenAIKey;
+window.testGoogleKey = testGoogleKey;
+window.speakCurrentWord = speakCurrentWord;
+
 // 🔧 권한 체크가 포함된 전역 함수들로 교체
 window.toggleAIMode = toggleAIModeWithAuth;
 window.toggleVocabulary = toggleVocabularyWithAuth;
