@@ -1183,7 +1183,29 @@
     </div>
     
     <!-- 발음 연습 모달 -->
-    <div class="practice-modal" id="practiceModal" style="display: none;">
+<div class="practice-modal" id="practiceModal">
+    <div class="practice-content">
+        <div class="practice-title">🎤 발음 연습</div>
+        <div class="practice-word" id="practiceWord"></div>
+        <div class="practice-pronunciation" id="practicePronunciation"></div>
+        <div class="practice-controls">
+            <button class="practice-btn listen" onclick="listenPracticeWord()" title="듣기">🔊</button>
+            <button class="practice-btn record" id="recordBtn" onclick="toggleRecording()" title="녹음">🎤</button>
+        </div>
+        <div class="practice-feedback" id="practiceFeedback" style="display: none;">
+            <div class="practice-feedback-title">🔊 발음 피드백</div>
+            <div class="practice-feedback-text" id="practiceFeedbackText"></div>
+        </div>
+        <div class="practice-tips">
+            <div class="practice-tips-title">💡 발음 팁</div>
+            <div class="practice-tips-text" id="practiceTips"></div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+            <button class="quiz-btn primary" onclick="nextPracticeWord()">다음 단어</button>
+            <button class="quiz-btn secondary" onclick="closePractice()">완료</button>
+        </div>
+    </div>
+</div>
         <!-- 🔐 로그인/회원가입 모달 -->
     <div class="auth-modal" id="authModal">
         <div class="auth-content">
@@ -1575,12 +1597,19 @@ function setupAuthEventListeners() {
 function handleLoginClick() {
     console.log('[Debug] 로그인 버튼 클릭됨');
     
-    // 권한 체크 우선 제거
-    try {
-        toggleAuth();
-    } catch (error) {
-        console.error('[Debug] toggleAuth 오류:', error);
-        showStatus("로그인 기능 오류: " + error.message, "error");
+    if (currentUser) {
+        // 이미 로그인된 경우 API 키 관리로
+        console.log('[Debug] 로그인된 사용자 - API 키 관리 열기');
+        toggleApiKeys();
+    } else {
+        // 로그인 안된 경우 로그인 모달 열기
+        console.log('[Debug] 게스트 - 로그인 모달 열기');
+        const authModal = document.getElementById('authModal');
+        if (authModal) {
+            authModal.classList.add('active');
+        } else {
+            console.error('[Debug] authModal을 찾을 수 없습니다');
+        }
     }
 }
 
