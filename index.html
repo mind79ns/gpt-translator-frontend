@@ -6,7 +6,7 @@
     <title>GPT 양방향 음성 번역기 Pro v6.0 - AI 문맥 번역 고도화</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root {
+       :root {
             --primary: #4F46E5; --secondary: #7C3AED; --bg: #ffffff; --text: #212529;
             --text-secondary: #868e96; --border: #e0e0e0; --card-bg: #f8f9fa;
             --success: #51cf66; --warning: #ffd43b; --error: #ff6b6b;
@@ -398,6 +398,34 @@
     padding: 5px;
 }
   
+/* 🔧 강제 모달 표시 CSS */
+        .auth-modal {
+            display: none !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            background: rgba(0,0,0,0.7) !important;
+            z-index: 9999 !important;
+            padding: 20px !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .auth-modal.active {
+            display: flex !important;
+        }
+        
+        .auth-content {
+            background: var(--bg) !important;
+            border-radius: 20px !important;
+            width: 100% !important;
+            max-width: 450px !important;
+            padding: 0 !important;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3) !important;
+            overflow: hidden !important;
+        }
+
 /* 🔐 로그인/회원가입 모달 스타일 */
         .login-toggle {
             background: rgba(255,255,255,0.2);
@@ -1575,11 +1603,9 @@ function toggleAuth() {
     if (isActive) {
         authModal.classList.remove('active');
         console.log('[Debug] 모달 닫기 완료');
-        alert('🔒 로그인 모달을 닫습니다.');
     } else {
         authModal.classList.add('active');
         console.log('[Debug] 모달 열기 완료');
-        alert('🔓 로그인 모달을 엽니다.');
         
         // 다른 모달들 닫기
         document.getElementById('dashboardModal')?.classList.remove('active');
