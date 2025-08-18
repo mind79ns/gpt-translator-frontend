@@ -223,9 +223,23 @@
         .quiz-score { font-size: 48px; font-weight: bold; color: var(--success); margin-bottom: 15px; }
         .quiz-message { font-size: 18px; color: var(--text); margin-bottom: 20px; }
         
-        /* 발음 연습 모달 */
-        .practice-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 3000; padding: 20px; align-items: center; justify-content: center; }
-        .practice-modal.active { display: flex; }
+       /* 발음 연습 모달 - 강제 숨김 */
+        .practice-modal { 
+            display: none !important; 
+            position: fixed !important; 
+            top: 0 !important; 
+            left: 0 !important; 
+            right: 0 !important; 
+            bottom: 0 !important; 
+            background: rgba(0,0,0,0.7) !important; 
+            z-index: 3000 !important; 
+            padding: 20px !important; 
+            align-items: center !important; 
+            justify-content: center !important; 
+        }
+        .practice-modal.active { 
+            display: flex !important; 
+        }
         .practice-content { background: var(--bg); border-radius: 16px; width: 100%; max-width: 450px; padding: 25px; text-align: center; }
         .practice-title { font-size: 20px; font-weight: bold; color: var(--warning); margin-bottom: 20px; }
         .practice-word { font-size: 32px; font-weight: bold; color: var(--text); margin-bottom: 15px; }
@@ -1169,7 +1183,7 @@
     </div>
     
     <!-- 발음 연습 모달 -->
-    <div class="practice-modal" id="practiceModal">
+    <div class="practice-modal" id="practiceModal" style="display: none;">
         <!-- 🔐 로그인/회원가입 모달 -->
     <div class="auth-modal" id="authModal">
         <div class="auth-content">
@@ -2424,7 +2438,8 @@ let quizState = {
     wrongAnswers: 0,
     totalQuestions: 10,
     selectedAnswer: null
-};
+}; // 🔧 수정: 닫는 괄호 추가
+
 let practiceState = {
     active: false,
     currentWord: null,
@@ -2432,13 +2447,18 @@ let practiceState = {
     practiceTime: 0,
     lastRecording: null,
     recordingStartTime: null
-};
+}; // 🔧 수정: 정의를 먼저 하고
+
 let vocabularyStats = {
     totalWords: 0,
     quizAccuracy: 0,
     practiceTime: 0,
     learningProgress: 0
-};
+}; // 🔧 수정: 닫는 괄호 추가
+
+// 🔧 강제 비활성화 (정의 후에 실행)
+practiceState.active = false;
+quizState.active = false;
 
 // DOM 요소들
 const els={inputText:document.getElementById("inputText"),translation:document.getElementById("translation"),pronunciationContent:document.getElementById("pronunciation-content"),pronunciationSection:document.getElementById("pronunciationSection"),pronToggleIcon:document.getElementById("pronToggleIcon"),status:document.getElementById("status"),voiceBtn:document.getElementById("voiceBtn"),speakBtn:document.getElementById("speakBtn"),copyBtn:document.getElementById("copyBtn"),sourceLangSelect:document.getElementById("sourceLangSelect"),targetLangSelect:document.getElementById("targetLangSelect"),voiceSelect:document.getElementById("voiceSelect"),googleVoiceSelect:document.getElementById("googleVoiceSelect"),autoDetectBadge:document.getElementById("autoDetectBadge"),settingsPanel:document.getElementById("settingsPanel"),normalMode:document.getElementById("normalMode"),conversationMode:document.getElementById("conversationMode"),normalModeBtn:document.getElementById("normalModeBtn"),conversationModeBtn:document.getElementById("conversationModeBtn"),speakerCardA:document.getElementById("speakerCardA"),speakerCardB:document.getElementById("speakerCardB"),speakerLangA:document.getElementById("speakerLangA"),speakerLangB:document.getElementById("speakerLangB"),startConversationBtn:document.getElementById("startConversationBtn"),stopConversationBtn:document.getElementById("stopConversationBtn"),conversationHistory:document.getElementById("conversationHistory"),ttsEngineMode:document.getElementById("ttsEngineMode"),cacheIndicator:document.getElementById("cacheIndicator"),engineIndicator:document.getElementById("engineIndicator"),recentPlays:document.getElementById("recentPlays"),recentPlayList:document.getElementById("recentPlayList"),dashboardModal:document.getElementById("dashboardModal"),historyModal:document.getElementById("historyModal"),historyList:document.getElementById("historyList"),todayTranslations:document.getElementById("todayTranslations"),totalTranslations:document.getElementById("totalTranslations"),cacheHitRate:document.getElementById("cacheHitRate"),autoModeSettings:document.getElementById("autoModeSettings"),autoThreshold:document.getElementById("autoThreshold"),thresholdValue:document.getElementById("thresholdValue"),volumeControl:document.getElementById("volumeControl"),volumeValue:document.getElementById("volumeValue"),pronunciationToggle:document.getElementById("pronunciationToggle"),aiToggle:document.getElementById("aiToggle"),aiContextBadge:document.getElementById("aiContextBadge"),aiIndicator:document.getElementById("aiIndicator"),translateBtn:document.getElementById("translateBtn"),translateBtnText:document.getElementById("translateBtnText"),qualitySlider:document.getElementById("qualitySlider"),aiSettingsSection:document.getElementById("aiSettingsSection"),vocabularyOriginal:document.getElementById("vocabularyOriginal"),vocabularyTranslation:document.getElementById("vocabularyTranslation"),vocabularyDescription:document.getElementById("vocabularyDescription"),vocabularyList:document.getElementById("vocabularyList"),vocabularyStats:document.getElementById("vocabularyStats"),wordDetailModal:document.getElementById("wordDetailModal"),quizModal:document.getElementById("quizModal"),practiceModal:document.getElementById("practiceModal")};
@@ -4214,7 +4234,31 @@ document.addEventListener("DOMContentLoaded", function() {
             document.addEventListener(event, initAudioContext, { once: true });
         });
         
-        showStatus("✅ 번역기 v6.0 - 월별 비용 차트 추가 완료", "success");
+        console.log("✅ 번역기 v6.0 초기화 완료");
+        
+        // 🔧 모든 모달 강제 숨김 처리
+        setTimeout(() => {
+            const modals = [
+                'practiceModal', 
+                'wordDetailModal', 
+                'quizModal', 
+                'authModal', 
+                'dashboardModal', 
+                'historyModal',
+                'vocabularyDropdown'
+            ];
+            
+            modals.forEach(modalId => {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.classList.remove('active');
+                    modal.style.display = 'none';
+                    console.log(`[Debug] ${modalId} 강제 숨김 처리`);
+                }
+            });
+            
+            console.log("[Debug] 모든 모달 숨김 처리 완료");
+        }, 100);
         
     } catch (error) {
         console.error('초기화 오류:', error);
