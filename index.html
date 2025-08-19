@@ -881,8 +881,8 @@
             </div>
             <!-- 아이콘들을 별도 줄로 -->
             <div class="header-controls">
-                <button class="ai-toggle" id="aiToggle" onclick="toggleAIMode()" title="AI 문맥 번역">🧠</button>
-                <button class="vocab-toggle" id="vocabToggle" onclick="toggleVocabulary()" title="고급 단어장">📚</button>
+                <button class="ai-toggle" id="aiToggle" onclick="toggleAIModeWithAuth()" title="AI 문맥 번역">🧠</button>
+                <button class="vocab-toggle" id="vocabToggle" onclick="toggleVocabularyWithAuth()" title="고급 단어장">📚</button>
                 <button class="dashboard-toggle" onclick="toggleDashboard()">📊</button>
                 <button class="settings-toggle" onclick="toggleSettings()">⚙️</button>
                 <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
@@ -1574,21 +1574,25 @@ function setupAuthEventListeners() {
 
 // 🔧 로그인 클릭 핸들러 (디버그용)
 function handleLoginClick() {
-    console.log('[Debug] 로그인 버튼 클릭됨');
-    
     if (currentUser) {
-        // 이미 로그인된 경우 API 키 관리로
-        console.log('[Debug] 로그인된 사용자 - API 키 관리 열기');
-        toggleApiKeys();
-    } else {
-        // 로그인 안된 경우 로그인 모달 열기
-        console.log('[Debug] 게스트 - 로그인 모달 열기');
-        const authModal = document.getElementById('authModal');
-        if (authModal) {
-            authModal.classList.add('active');
+        // 로그인된 상태: 사용자에게 로그아웃할지 API 키를 관리할지 선택권을 줍니다.
+        if (confirm('로그아웃하시겠습니까?\n\n취소를 누르면 API 키 관리 화면으로 이동합니다.')) {
+            handleLogout(); // "확인" 클릭 시 로그아웃 함수 호출
         } else {
-            console.error('[Debug] authModal을 찾을 수 없습니다');
+            toggleApiKeys(); // "취소" 클릭 시 API 키 관리 창 열기
         }
+    } else {
+        // 로그인 안된 상태: 로그인 모달 열기
+        toggleAuth();
+    }
+}
+
+// 참고: handleLogout 함수는 이미 아래와 같이 구현되어 있습니다.
+function handleLogout() {
+    if (confirm('로그아웃 하시겠습니까?')) {
+        clearAuthData();
+        updateAuthUI(false);
+        showStatus("로그아웃되었습니다", "info");
     }
 }
 
@@ -4062,9 +4066,9 @@ window.testOpenAIKey = testOpenAIKey;
 window.testGoogleKey = testGoogleKey;
 window.speakCurrentWord = speakCurrentWord;
 
-// 🔧 권한 체크가 포함된 전역 함수들로 교체
-window.toggleAIMode = toggleAIModeWithAuth;
-window.toggleVocabulary = toggleVocabularyWithAuth;
+// 🔧 권한 체크가 포함된 전역 함수들
+window.toggleAIModeWithAuth = toggleAIModeWithAuth;
+window.toggleVocabularyWithAuth = toggleVocabularyWithAuth;
 window.switchVocabTab = switchVocabTab;
 window.addTerminology = addTerminology;
 window.removeTerminology = removeTerminology;
