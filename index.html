@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GPT 양방향 음성 번역기 Pro v6.0 - AI 문맥 번역 고도화</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-       :root {
-            --primary: #4F46E5; --secondary: #7C3AED; --bg: #ffffff; --text: #212529;
-            --text-secondary: #868e96; --border: #e0e0e0; --card-bg: #f8f9fa;
-            --success: #51cf66; --warning: #ffd43b; --error: #ff6b6b;
-            --google-blue: #4285F4; --openai-green: #10A37F; --ai-purple: #8B5CF6;
-        }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+    --primary: #4F46E5; --secondary: #7C3AED; --bg: #ffffff; --text: #212529;
+    --text-secondary: #868e96; --border: #e0e0e0; --card-bg: #f8f9fa;
+    --success: #51cf66; --warning: #ffd43b; --error: #ff6b6b;
+    --google-blue: #4285F4; --openai-green: #10A37F; --ai-purple: #8B5CF6;
+}
         [data-theme="dark"] {
             --primary: #6366F1; --secondary: #8B5CF6; --bg: #1a1a1a; --text: #ffffff;
             --text-secondary: #a0a0a0; --border: #333333; --card-bg: #2a2a2a;
@@ -224,8 +225,8 @@
         .quiz-message { font-size: 18px; color: var(--text); margin-bottom: 20px; }
         
         <!-- 발음 연습 모달 (수정된 버전) -->
-<div class="practice-modal" id="practiceModal" style="display: none !important; visibility: hidden !important; position: absolute !important; left: -9999px !important;">
-    <div class="practice-content">
+<div class="practice-modal" id="practiceModal">
+  <div class="practice-content">
         <div class="practice-title">🎤 발음 연습</div>
         <div class="practice-word" id="practiceWord"></div>
         <div class="practice-pronunciation" id="practicePronunciation"></div>
@@ -248,20 +249,23 @@
     </div>
 </div>
 
-       /* 발음 연습 모달 - 완전 숨김 처리 */
-.practice-modal { 
-    display: none !important; 
-    visibility: hidden !important;
-    opacity: 0 !important;
-    position: fixed !important; 
-    top: -9999px !important;
-    left: -9999px !important;
-    z-index: -1 !important;
-}
-/* active 클래스가 있어도 숨김 유지 */
-.practice-modal.active { 
-    display: none !important;
-    visibility: hidden !important;
+/* active 클래스가 붙으면 모달을 화면에 표시 */
+.practice-modal.active {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 3000 !important;
+} /* <<<< 이 닫는 중괄호를 추가해주세요. */
+
+.practice-content {
+    background: var(--bg);
+    border-radius: 16px;
+    width: 100%;
+    /* ... */
 }
         .practice-content { background: var(--bg); border-radius: 16px; width: 100%; max-width: 450px; padding: 25px; text-align: center; }
         .practice-title { font-size: 20px; font-weight: bold; color: var(--warning); margin-bottom: 20px; }
@@ -1229,8 +1233,6 @@
             </div>
         </div>
     </div>
-
-</body>
             
             <!-- 회원가입 폼 -->
             <div class="auth-form" id="registerForm" style="display: none;">
@@ -1316,29 +1318,7 @@
             </div>
         </div>
     </div>
-        <div class="practice-content">
-            <div class="practice-title">🎤 발음 연습</div>
-            <div class="practice-word" id="practiceWord"></div>
-            <div class="practice-pronunciation" id="practicePronunciation"></div>
-            <div class="practice-controls">
-                <button class="practice-btn listen" onclick="listenPracticeWord()" title="듣기">🔊</button>
-                <button class="practice-btn record" id="recordBtn" onclick="toggleRecording()" title="녹음">🎤</button>
-            </div>
-            <div class="practice-feedback" id="practiceFeedback" style="display: none;">
-                <div class="practice-feedback-title">🔊 발음 피드백</div>
-                <div class="practice-feedback-text" id="practiceFeedbackText"></div>
-            </div>
-            <div class="practice-tips">
-                <div class="practice-tips-title">💡 발음 팁</div>
-                <div class="practice-tips-text" id="practiceTips"></div>
-            </div>
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                <button class="quiz-btn primary" onclick="nextPracticeWord()">다음 단어</button>
-                <button class="quiz-btn secondary" onclick="closePractice()">완료</button>
-            </div>
-        </div>
-    </div>
-    
+        
 <script>
 // ===================================================
 // GPT 양방향 음성 번역기 Pro v6.0 - AI 문맥 번역 고도화
@@ -4275,7 +4255,7 @@ document.addEventListener("DOMContentLoaded", function() {
         console.log("✅ 번역기 v6.0 초기화 완료");
         
         // 🔧 모든 모달 강제 숨김 처리
-     // 🔧 모든 모달 강제 숨김 처리 (로그인 모달 제외)
+// 🔧 모든 모달 강제 숨김 처리 (로그인 모달 제외)
 setTimeout(() => {
     const modals = [
         'practiceModal', 
@@ -4286,7 +4266,7 @@ setTimeout(() => {
         'historyModal',
         'vocabularyDropdown'
     ];
-    
+
     modals.forEach(modalId => {
         const modal = document.getElementById(modalId);
         if (modal) {
@@ -4299,7 +4279,7 @@ if (modalId === 'practiceModal') {
             console.log(`[Debug] ${modalId} 강제 숨김 처리`);
         }
     });
-    
+
     console.log("[Debug] 모달 숨김 처리 완료 (authModal 제외)");
 }, 100);
         
