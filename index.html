@@ -478,32 +478,44 @@
             border-color: rgba(255,255,255,0.8);
         }
         
-        .auth-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.7);
-            z-index: 4000;
-            padding: 20px;
-            align-items: center;
-            justify-content: center;
-        }
-        .auth-modal.active {
-            display: flex;
-        }
-        
-        .auth-content {
-            background: var(--bg);
-            border-radius: 20px;
-            width: 100%;
-            max-width: 450px;
-            padding: 0;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-        }
+        /* 팝업 배경 (반투명 오버레이) */
+.auth-modal {
+    display: none; /* 평소엔 숨김 */
+    position: fixed; /* 화면 전체에 고정 */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6); /* 반투명 검은색 배경 */
+    z-index: 4000;
+    padding: 20px;
+    align-items: center;
+    justify-content: center;
+    opacity: 0; /* 부드러운 등장을 위한 초기 상태 */
+    transition: opacity 0.3s ease;
+}
+
+/* 팝업 활성화 시 스타일 */
+.auth-modal.active {
+    display: flex;
+    opacity: 1;
+}
+
+/* 팝업 내용물 (흰색 박스) */
+.auth-content {
+    background: var(--bg);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 450px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    overflow: hidden;
+    position: relative;
+    transform: scale(0.95); /* 나타날 때 약간 커지는 효과 */
+    transition: transform 0.3s ease;
+}
+.auth-modal.active .auth-content {
+    transform: scale(1); /* 활성화 시 원래 크기로 */
+}
         
         .auth-header {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
@@ -543,9 +555,18 @@
             padding: 5px;
         }
         
-        .auth-form {
-            padding: 30px;
-        }
+.auth-form {
+    padding: 30px;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    display: none; /* 기본적으로 숨김 */
+    opacity: 0;
+    visibility: hidden;
+}
+.auth-form.active {
+    display: block; /* 활성화 시 공간 차지 */
+    opacity: 1;
+    visibility: visible;
+}
         
         .auth-form-title {
             font-size: 20px;
@@ -1210,46 +1231,66 @@
     </div>
 </div>
         <!-- 🔐 로그인/회원가입 모달 -->
-    <div class="auth-modal" id="authModal">
-        <div class="auth-content">
-            <div class="auth-header">
-                <div class="auth-tabs">
-                    <button class="auth-tab active" data-tab="login">🔑 로그인</button>
-                    <button class="auth-tab" data-tab="register">📝 회원가입</button>
-                </div>
-                <button class="auth-close" onclick="toggleAuth()">×</button>
+ <div class="auth-modal" id="authModal">
+    <div class="auth-content">
+        <div class="auth-header">
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">🔑 로그인</button>
+                <button class="auth-tab" data-tab="register">📝 회원가입</button>
             </div>
-            
-            <!-- 로그인 폼 -->
-            <div class="auth-form" id="loginForm">
-                <div class="auth-form-title">GPT 번역기 Pro 로그인</div>
-                <div class="auth-input-group">
-                    <input type="email" id="loginEmail" placeholder="이메일 주소" required>
-                    <input type="password" id="loginPassword" placeholder="비밀번호" required>
-                </div>
-                <button class="auth-btn primary" onclick="handleLogin()">🔑 로그인</button>
-                <div class="auth-divider">또는</div>
-                <button class="auth-btn guest" onclick="continueAsGuest()">🎯 게스트로 계속하기</button>
+            <button class="auth-close" onclick="toggleAuth()">×</button>
+        </div>
+
+        <div class="auth-form active" id="loginForm">
+            <div class="auth-form-title">GPT 번역기 Pro 로그인</div>
+            <div class="auth-input-group">
+                <input type="email" id="loginEmail" placeholder="이메일 주소" required>
+                <input type="password" id="loginPassword" placeholder="비밀번호" required>
+            </div>
+            <button class="auth-btn primary" onclick="handleLogin()">🔑 로그인</button>
+            <div class="auth-divider">또는</div>
+            <button class="auth-btn guest" onclick="continueAsGuest()">🎯 게스트로 계속하기</button>
+             <div class="auth-links">
+                <a href="#" onclick="event.preventDefault(); switchAuthTab('forgot');">비밀번호를 잊으셨나요?</a>
+            </div>
+        </div>
+
+        <div class="auth-form" id="registerForm">
+            <div class="auth-form-title">새 계정 만들기</div>
+            <div class="auth-input-group">
+                <input type="text" id="registerName" placeholder="이름 (선택사항)">
+                <input type="email" id="registerEmail" placeholder="이메일 주소" required>
+                <input type="password" id="registerPassword" placeholder="비밀번호 (8자 이상)" required>
+                <input type="password" id="registerPasswordConfirm" placeholder="비밀번호 확인" required>
+            </div>
+            <div class="auth-agreement">
+                <label class="auth-checkbox">
+                    <input type="checkbox" id="agreeTerms" required>
+                    <span>서비스 이용약관 및 개인정보처리방침에 동의합니다</span>
+                </label>
+            </div>
+            <button class="auth-btn primary" onclick="handleRegister()">📝 회원가입</button>
+            <div class="auth-links">
+                <a href="#" onclick="event.preventDefault(); switchAuthTab('login');">← 로그인으로 돌아가기</a>
+            </div>
+        </div>
+
+        <div class="auth-form" id="forgotForm">
+            <div class="auth-form-title">비밀번호 재설정</div>
+            <div class="auth-input-group">
+                <input type="email" id="forgotEmail" placeholder="가입한 이메일 주소" required>
+            </div>
+            <button class="auth-btn primary" onclick="handleForgotPassword()">📧 재설정 링크 보내기</button>
+            <div class="auth-links">
+                <a href="#" onclick="event.preventDefault(); switchAuthTab('login');">← 로그인으로 돌아가기</a>
             </div>
         </div>
     </div>
-            
-            <!-- 회원가입 폼 -->
-            <div class="auth-form" id="registerForm" style="display: none;">
-                <div class="auth-form-title">새 계정 만들기</div>
-                <div class="auth-input-group">
-                    <input type="text" id="registerName" placeholder="이름 (선택사항)">
-                    <input type="email" id="registerEmail" placeholder="이메일 주소" required>
-                    <input type="password" id="registerPassword" placeholder="비밀번호 (8자 이상)" required>
-                    <input type="password" id="registerPasswordConfirm" placeholder="비밀번호 확인" required>
-                </div>
-                <div class="auth-agreement">
-                    <label class="auth-checkbox">
-                        <input type="checkbox" id="agreeTerms" required>
-                        <span>서비스 이용약관 및 개인정보처리방침에 동의합니다</span>
-                    </label>
-                </div>
-                <button class="auth-btn primary" onclick="handleRegister()">📝 회원가입</button>
+</div>
+
+    <div class="auth-info">
+        </div>
+</div>
                 <div class="auth-info">
                     <small>• 개인 API 키 등록으로 무제한 번역</small>
                     <small>• 사용량 추적 및 분석</small>
@@ -1662,17 +1703,21 @@ function switchAuthTab(tabName) {
     document.querySelectorAll('.auth-tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-    
-    // 폼 표시
+    const activeTab = document.querySelector(`[data-tab="${tabName}"]`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
+
+    // 모든 폼 숨기기
     document.querySelectorAll('.auth-form').forEach(form => {
-        form.style.display = 'none';
+        form.classList.remove('active');
     });
-    
-    if (tabName === 'login') {
-        document.getElementById('loginForm').style.display = 'block';
-    } else if (tabName === 'register') {
-        document.getElementById('registerForm').style.display = 'block';
+
+    // 목표 폼 표시
+    const targetFormId = tabName === 'login' ? 'loginForm' : 'registerForm';
+    const targetForm = document.getElementById(targetFormId);
+    if (targetForm) {
+        targetForm.classList.add('active');
     }
 }
 
