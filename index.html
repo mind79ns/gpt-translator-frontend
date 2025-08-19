@@ -223,23 +223,21 @@
         .quiz-score { font-size: 48px; font-weight: bold; color: var(--success); margin-bottom: 15px; }
         .quiz-message { font-size: 18px; color: var(--text); margin-bottom: 20px; }
         
-       /* 발음 연습 모달 - 강제 숨김 */
-        .practice-modal { 
-            display: none !important; 
-            position: fixed !important; 
-            top: 0 !important; 
-            left: 0 !important; 
-            right: 0 !important; 
-            bottom: 0 !important; 
-            background: rgba(0,0,0,0.7) !important; 
-            z-index: 3000 !important; 
-            padding: 20px !important; 
-            align-items: center !important; 
-            justify-content: center !important; 
-        }
-        .practice-modal.active { 
-            display: flex !important; 
-        }
+       /* 발음 연습 모달 - 완전 숨김 처리 */
+.practice-modal { 
+    display: none !important; 
+    visibility: hidden !important;
+    opacity: 0 !important;
+    position: fixed !important; 
+    top: -9999px !important;
+    left: -9999px !important;
+    z-index: -1 !important;
+}
+/* active 클래스가 있어도 숨김 유지 */
+.practice-modal.active { 
+    display: none !important;
+    visibility: hidden !important;
+}
         .practice-content { background: var(--bg); border-radius: 16px; width: 100%; max-width: 450px; padding: 25px; text-align: center; }
         .practice-title { font-size: 20px; font-weight: bold; color: var(--warning); margin-bottom: 20px; }
         .practice-word { font-size: 32px; font-weight: bold; color: var(--text); margin-bottom: 15px; }
@@ -1182,8 +1180,8 @@
         </div>
     </div>
     
-    <!-- 발음 연습 모달 -->
-<div class="practice-modal" id="practiceModal">
+<!-- 발음 연습 모달 -->
+<div class="practice-modal" id="practiceModal" style="display: none !important; visibility: hidden !important;">
     <div class="practice-content">
         <div class="practice-title">🎤 발음 연습</div>
         <div class="practice-word" id="practiceWord"></div>
@@ -4293,9 +4291,11 @@ setTimeout(() => {
         if (modal) {
             modal.classList.remove('active');
             // practiceModal만 특별 처리
-            if (modalId === 'practiceModal') {
-                modal.style.cssText = 'display: none !important;';
-            }
+            // practiceModal만 특별 처리
+if (modalId === 'practiceModal') {
+    modal.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; position: fixed !important; top: -9999px !important; left: -9999px !important;';
+    modal.classList.remove('active');
+}
             console.log(`[Debug] ${modalId} 강제 숨김 처리`);
         }
     });
