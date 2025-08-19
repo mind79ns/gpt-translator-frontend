@@ -223,6 +223,31 @@
         .quiz-score { font-size: 48px; font-weight: bold; color: var(--success); margin-bottom: 15px; }
         .quiz-message { font-size: 18px; color: var(--text); margin-bottom: 20px; }
         
+        <!-- 발음 연습 모달 (수정된 버전) -->
+<div class="practice-modal" id="practiceModal" style="display: none !important; visibility: hidden !important; position: absolute !important; left: -9999px !important;">
+    <div class="practice-content">
+        <div class="practice-title">🎤 발음 연습</div>
+        <div class="practice-word" id="practiceWord"></div>
+        <div class="practice-pronunciation" id="practicePronunciation"></div>
+        <div class="practice-controls">
+            <button class="practice-btn listen" onclick="listenPracticeWord()" title="듣기">🔊</button>
+            <button class="practice-btn record" id="recordBtn" onclick="toggleRecording()" title="녹음">🎤</button>
+        </div>
+        <div class="practice-feedback" id="practiceFeedback" style="display: none;">
+            <div class="practice-feedback-title">🔊 발음 피드백</div>
+            <div class="practice-feedback-text" id="practiceFeedbackText"></div>
+        </div>
+        <div class="practice-tips">
+            <div class="practice-tips-title">💡 발음 팁</div>
+            <div class="practice-tips-text" id="practiceTips"></div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+            <button class="quiz-btn primary" onclick="nextPracticeWord()">다음 단어</button>
+            <button class="quiz-btn secondary" onclick="closePractice()">완료</button>
+        </div>
+    </div>
+</div>
+
        /* 발음 연습 모달 - 완전 숨김 처리 */
 .practice-modal { 
     display: none !important; 
@@ -1177,30 +1202,6 @@
                     <button class="quiz-btn secondary" onclick="closeQuiz()">완료</button>
                 </div>
             </div>
-        </div>
-    </div>
-    
-<!-- 발음 연습 모달 -->
-<div class="practice-modal" id="practiceModal" style="display: none !important; visibility: hidden !important;">
-    <div class="practice-content">
-        <div class="practice-title">🎤 발음 연습</div>
-        <div class="practice-word" id="practiceWord"></div>
-        <div class="practice-pronunciation" id="practicePronunciation"></div>
-        <div class="practice-controls">
-            <button class="practice-btn listen" onclick="listenPracticeWord()" title="듣기">🔊</button>
-            <button class="practice-btn record" id="recordBtn" onclick="toggleRecording()" title="녹음">🎤</button>
-        </div>
-        <div class="practice-feedback" id="practiceFeedback" style="display: none;">
-            <div class="practice-feedback-title">🔊 발음 피드백</div>
-            <div class="practice-feedback-text" id="practiceFeedbackText"></div>
-        </div>
-        <div class="practice-tips">
-            <div class="practice-tips-title">💡 발음 팁</div>
-            <div class="practice-tips-text" id="practiceTips"></div>
-        </div>
-        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-            <button class="quiz-btn primary" onclick="nextPracticeWord()">다음 단어</button>
-            <button class="quiz-btn secondary" onclick="closePractice()">완료</button>
         </div>
     </div>
 </div>
@@ -4290,7 +4291,6 @@ setTimeout(() => {
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.remove('active');
-            // practiceModal만 특별 처리
             // practiceModal만 특별 처리
 if (modalId === 'practiceModal') {
     modal.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; position: fixed !important; top: -9999px !important; left: -9999px !important;';
