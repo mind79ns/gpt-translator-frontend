@@ -4060,7 +4060,33 @@ async function handleConversationTranslation(e){const t=conversationState.curren
 function updateConversationHistory(){0===conversationState.messages.length?els.conversationHistory.innerHTML='<div style="text-align:center; padding: 20px; color: var(--text-secondary);">대화를 시작하세요</div>':(els.conversationHistory.innerHTML=conversationState.messages.map(e=>`<div class="conversation-message"><div class="message-speaker speaker-${"A"===e.speaker?"a":"b"}">${e.speaker}</div><div class="message-content"><div class="message-original">${e.original}</div><div class="message-translation">${e.translation}</div></div></div>`).join(""),els.conversationHistory.scrollTop=els.conversationHistory.scrollHeight)}
 async function playChunkedAudio(e,t){for(const a of e){usageTracker.track("tts",a.length,"google");const e=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"speak",inputText:a,language:t,useGoogleTTS:!0,voiceName:els.googleVoiceSelect.value})});e.ok&&queueAudioBlob(await e.blob())}}
 function initAudioContext(){audioContext||(audioContext=new(window.AudioContext||window.webkitAudioContext)),"suspended"===audioContext?.state&&audioContext.resume()}
-async function playAudioBlob(e){try{initAudioContext();const t=await audioContext.decodeAudioData(await e.arrayBuffer()),a=audioContext.createBufferSource();a.buffer=t,a.connect(audioContext.destination),a.onended=playNextInQueue,a.start(0)}catch(t){const a=new Audio(URL.createObjectURL(e));a.onended=playNextInQueue,a.play()}}
+async function playAudioBlob(e){
+    try{
+        initAudioContext();
+        const audioBuffer = await audioContext.decodeAudioData(await e.arrayBuffer());
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+
+        // 🎯 볼륨 조절기(GainNode) 생성
+        const gainNode = audioContext.createGain();
+        
+        // 🎯 증폭 설정 (1.0이 기본값, 숫자를 키울수록 소리가 커집니다)
+        gainNode.gain.value = 4.5; // 예: 2.5배 증폭
+
+        // 🎯 오디오 연결: 소스 -> 볼륨 조절기 -> 스피커
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        source.onended = playNextInQueue;
+        source.start(0);
+    } catch(t) {
+        // Web Audio API를 지원하지 않는 경우의 대체 코드
+        const audio = new Audio(URL.createObjectURL(e));
+        audio.volume = 1.0; // HTML Audio 요소의 볼륨은 0.0 ~ 1.0
+        audio.onended = playNextInQueue;
+        audio.play();
+    }
+}
 function queueAudioBlob(e){audioQueue.push(e),isQueuePlaying||playNextInQueue()}
 function playNextInQueue(){if(0===audioQueue.length)return void(isQueuePlaying=!1);isQueuePlaying=!0,playAudioBlob(audioQueue.shift())}
 function getStats(){const e=localStorage.getItem("translationStats");return e?JSON.parse(e):{totalTranslations:0,todayTranslations:0,lastDate:(new Date).toDateString()}}
