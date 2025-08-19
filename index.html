@@ -439,23 +439,30 @@
     padding: 5px;
 }
   
-/* 🔧 강제 모달 표시 CSS */
-        .auth-modal {
-            display: none !important;
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            background: rgba(0,0,0,0.7) !important;
-            z-index: 9999 !important;
-            padding: 20px !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-        .auth-modal.active {
-            display: flex !important;
-        }
+/* 발음 연습 모달 - 완전한 스타일 정의 */
+.practice-modal {
+    display: none !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0,0,0,0.7) !important;
+    z-index: 3000 !important;
+    padding: 20px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    transition: all 0.3s ease !important;
+}
+
+.practice-modal.active {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+        
         
         .auth-content {
             background: var(--bg) !important;
@@ -3138,6 +3145,9 @@ function closeQuiz() {
 function startPronunciationPractice() {
     if (!currentVocabWord) return;
     
+    // 다른 모든 모달 닫기
+    closeAllModals();
+    
     practiceState = {
         active: true,
         currentWord: currentVocabWord,
@@ -3147,6 +3157,7 @@ function startPronunciationPractice() {
         recordingStartTime: null
     };
     
+    // UI 업데이트
     document.getElementById('practiceWord').textContent = practiceState.currentWord.original;
     document.getElementById('practicePronunciation').textContent = `[${generatePronunciation(practiceState.currentWord.original)}]`;
     document.getElementById('practiceTips').textContent = generatePronunciationTips(practiceState.currentWord.original);
@@ -3157,7 +3168,11 @@ function startPronunciationPractice() {
     recordBtn.textContent = '🎤';
     
     closeWordDetail();
-    els.practiceModal.classList.add('active');
+    
+    // 모달 표시 - 강제 스타일 적용
+    const practiceModal = document.getElementById('practiceModal');
+    practiceModal.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 3000 !important; padding: 20px !important; align-items: center !important; justify-content: center !important;';
+    practiceModal.classList.add('active');
 }
 
 function startWordPractice(wordKey = null) {
@@ -3487,7 +3502,7 @@ function closePractice() {
         stopPracticeRecording();
     }
     
-    // ✅ 단어장 전용 recognition 정리
+    // 음성인식 정리
     if (practiceRecognition) {
         try {
             practiceRecognition.abort();
@@ -3497,7 +3512,11 @@ function closePractice() {
         practiceRecognition = null;
     }
     
-    els.practiceModal.classList.remove('active');
+    // 모달 완전 숨김
+    const practiceModal = document.getElementById('practiceModal');
+    practiceModal.classList.remove('active');
+    practiceModal.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+    
     practiceState = {
         active: false,
         currentWord: null,
@@ -4117,6 +4136,28 @@ window.toggleVocabularyWithAuth = toggleVocabularyWithAuth;
 window.switchVocabTab = switchVocabTab;
 window.addTerminology = addTerminology;
 window.removeTerminology = removeTerminology;
+
+// 모든 모달 닫기 함수
+function closeAllModals() {
+    const modals = [
+        'practiceModal', 
+        'wordDetailModal', 
+        'quizModal', 
+        'dashboardModal', 
+        'historyModal',
+        'vocabularyDropdown'
+    ];
+
+    modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            if (modalId === 'practiceModal') {
+                modal.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+            }
+        }
+    });
+}
 
 // ✅ 초기화
 document.addEventListener("DOMContentLoaded", function() {
