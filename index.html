@@ -197,6 +197,7 @@
         .word-detail-btn.quiz { background: var(--success); color: white; }
         .word-detail-btn.practice { background: var(--warning); color: white; }
         
+
         /* 퀴즈 모달 */
         .quiz-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 3000; padding: 20px; align-items: center; justify-content: center; }
         .quiz-modal.active { display: flex; }
@@ -223,31 +224,6 @@
         .quiz-result { text-align: center; }
         .quiz-score { font-size: 48px; font-weight: bold; color: var(--success); margin-bottom: 15px; }
         .quiz-message { font-size: 18px; color: var(--text); margin-bottom: 20px; }
-        
-        <!-- 발음 연습 모달 (수정된 버전) -->
-<div class="practice-modal" id="practiceModal">
-  <div class="practice-content">
-        <div class="practice-title">🎤 발음 연습</div>
-        <div class="practice-word" id="practiceWord"></div>
-        <div class="practice-pronunciation" id="practicePronunciation"></div>
-        <div class="practice-controls">
-            <button class="practice-btn listen" onclick="listenPracticeWord()" title="듣기">🔊</button>
-            <button class="practice-btn record" id="recordBtn" onclick="toggleRecording()" title="녹음">🎤</button>
-        </div>
-        <div class="practice-feedback" id="practiceFeedback" style="display: none;">
-            <div class="practice-feedback-title">🔊 발음 피드백</div>
-            <div class="practice-feedback-text" id="practiceFeedbackText"></div>
-        </div>
-        <div class="practice-tips">
-            <div class="practice-tips-title">💡 발음 팁</div>
-            <div class="practice-tips-text" id="practiceTips"></div>
-        </div>
-        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-            <button class="quiz-btn primary" onclick="nextPracticeWord()">다음 단어</button>
-            <button class="quiz-btn secondary" onclick="closePractice()">완료</button>
-        </div>
-    </div>
-</div>
 
 /* active 클래스가 붙으면 모달을 화면에 표시 */
 .practice-modal.active {
@@ -462,7 +438,116 @@
     visibility: visible !important;
     opacity: 1 !important;
 }
-        
+   
+.practice-content {
+    background: var(--bg);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 450px;
+    padding: 25px;
+    text-align: center;
+}
+
+.practice-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--warning);
+    margin-bottom: 20px;
+}
+
+.practice-word {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--text);
+    margin-bottom: 15px;
+}
+
+.practice-pronunciation {
+    font-size: 18px;
+    color: var(--text-secondary);
+    background: var(--card-bg);
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.practice-controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.practice-btn {
+    padding: 15px;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.practice-btn:hover {
+    transform: scale(1.1);
+}
+
+.practice-btn.listen {
+    background: var(--primary);
+    color: white;
+}
+
+.practice-btn.record {
+    background: var(--error);
+    color: white;
+}
+
+.practice-btn.recording {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+.practice-feedback {
+    background: var(--card-bg);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.practice-feedback-title {
+    font-weight: bold;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.practice-feedback-text {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.practice-tips {
+    background: rgba(255, 212, 59, 0.1);
+    border-left: 4px solid var(--warning);
+    padding: 12px;
+    border-radius: 6px;
+}
+
+.practice-tips-title {
+    font-weight: bold;
+    color: var(--warning);
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.practice-tips-text {
+    color: var(--text-secondary);
+    font-size: 11px;
+}
         
         .auth-content {
             background: var(--bg) !important;
@@ -1195,11 +1280,15 @@
                 <div class="word-detail-description-title">📝 상세 설명</div>
                 <div class="word-detail-description-text" id="wordDetailDescription"></div>
             </div>
-            <div class="word-detail-actions">
-                <button class="word-detail-btn speak" onclick="speakCurrentWord()">🔊 발음</button>
-                <button class="word-detail-btn quiz" onclick="startSingleWordQuiz()">🎯 퀴즈</button>
-                <button class="word-detail-btn practice" onclick="startPronunciationPractice()">🎤 연습</button>
-            </div>
+           <div class="word-detail-actions">
+    <button class="word-detail-btn speak" onclick="speakCurrentWord()">🔊 발음</button>
+    <button class="word-detail-btn quiz" onclick="startSingleWordQuiz()">🎯 퀴즈</button>
+    <button class="word-detail-btn practice" onclick="startPronunciationPractice()">🎤 연습</button>
+</div>
+<div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+    <button class="word-detail-btn" style="background: var(--text-secondary);" onclick="showPreviousWord()">⬅️ 이전</button>
+    <button class="word-detail-btn" style="background: var(--text-secondary);" onclick="showNextWord()">다음 ➡️</button>
+</div>
         </div>
     </div>
     
@@ -1237,6 +1326,30 @@
         </div>
     </div>
 </div>
+<!-- 발음 연습 모달 -->
+    <div class="practice-modal" id="practiceModal">
+        <div class="practice-content">
+            <div class="practice-title">🎤 발음 연습</div>
+            <div class="practice-word" id="practiceWord"></div>
+            <div class="practice-pronunciation" id="practicePronunciation"></div>
+            <div class="practice-controls">
+                <button class="practice-btn listen" onclick="listenPracticeWord()" title="듣기">🔊</button>
+                <button class="practice-btn record" id="recordBtn" onclick="toggleRecording()" title="녹음">🎤</button>
+            </div>
+            <div class="practice-feedback" id="practiceFeedback" style="display: none;">
+                <div class="practice-feedback-title">🔊 발음 피드백</div>
+                <div class="practice-feedback-text" id="practiceFeedbackText"></div>
+            </div>
+            <div class="practice-tips">
+                <div class="practice-tips-title">💡 발음 팁</div>
+                <div class="practice-tips-text" id="practiceTips"></div>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="quiz-btn primary" onclick="nextPracticeWord()">다음 단어</button>
+                <button class="quiz-btn secondary" onclick="closePractice()">완료</button>
+            </div>
+        </div>
+    </div>
         <!-- 🔐 로그인/회원가입 모달 -->
  <div class="auth-modal" id="authModal">
     <div class="auth-content">
@@ -2980,16 +3093,32 @@ function addVocabulary() {
 
 function showWordDetail(original) {
     const word = vocabularyDict.get(original);
-    if (!word) return;
+    if (!word) {
+        showStatus("단어를 찾을 수 없습니다", "error");
+        return;
+    }
     
+    // currentVocabWord 설정 (중요!)
     currentVocabWord = word;
     
-    document.getElementById('wordDetailOriginal').textContent = word.original;
-    document.getElementById('wordDetailTranslation').textContent = word.translation;
-    document.getElementById('wordDetailPronunciation').textContent = `[${generatePronunciation(word.original)}]`;
-    document.getElementById('wordDetailDescription').textContent = word.description;
+    // DOM 요소 존재 확인
+    const wordDetailOriginalEl = document.getElementById('wordDetailOriginal');
+    const wordDetailTranslationEl = document.getElementById('wordDetailTranslation');
+    const wordDetailPronunciationEl = document.getElementById('wordDetailPronunciation');
+    const wordDetailDescriptionEl = document.getElementById('wordDetailDescription');
+    const wordDetailModal = document.getElementById('wordDetailModal');
     
-    els.wordDetailModal.classList.add('active');
+    if (!wordDetailOriginalEl || !wordDetailTranslationEl || !wordDetailPronunciationEl || !wordDetailDescriptionEl || !wordDetailModal) {
+        showStatus("단어 상세 UI 요소를 찾을 수 없습니다", "error");
+        return;
+    }
+    
+    wordDetailOriginalEl.textContent = word.original;
+    wordDetailTranslationEl.textContent = word.translation;
+    wordDetailPronunciationEl.textContent = `[${generatePronunciation(word.original)}]`;
+    wordDetailDescriptionEl.textContent = word.description;
+    
+    wordDetailModal.classList.add('active');
 }
 
 function closeWordDetail() {
@@ -3143,10 +3272,16 @@ function closeQuiz() {
 }
 
 function startPronunciationPractice() {
-    if (!currentVocabWord) return;
+    console.log('startPronunciationPractice 시작');
+    console.log('currentVocabWord:', currentVocabWord);
+
+    if (!currentVocabWord) {
+        showStatus("선택된 단어가 없습니다", "warning");
+        return;
+    }
     
-    // 다른 모든 모달 닫기
-    closeAllModals();
+    // 단어 상세 모달만 닫기 (단어장은 유지)
+    closeWordDetail();
     
     practiceState = {
         active: true,
@@ -3157,22 +3292,43 @@ function startPronunciationPractice() {
         recordingStartTime: null
     };
     
-    // UI 업데이트
-    document.getElementById('practiceWord').textContent = practiceState.currentWord.original;
-    document.getElementById('practicePronunciation').textContent = `[${generatePronunciation(practiceState.currentWord.original)}]`;
-    document.getElementById('practiceTips').textContent = generatePronunciationTips(practiceState.currentWord.original);
-    document.getElementById('practiceFeedback').style.display = 'none';
-    
+    // DOM 요소 존재 확인 후 업데이트
+    const practiceWordEl = document.getElementById('practiceWord');
+    const practicePronunciationEl = document.getElementById('practicePronunciation');
+    const practiceTipsEl = document.getElementById('practiceTips');
+    const practiceFeedbackEl = document.getElementById('practiceFeedback');
     const recordBtn = document.getElementById('recordBtn');
+    
+    console.log('DOM 요소 확인:');
+    console.log('practiceWord:', practiceWordEl);
+    console.log('practicePronunciation:', practicePronunciationEl);
+    console.log('practiceTips:', practiceTipsEl);
+    console.log('recordBtn:', recordBtn);
+
+    if (!practiceWordEl || !practicePronunciationEl || !practiceTipsEl || !recordBtn) {
+        showStatus("발음 연습 UI 요소를 찾을 수 없습니다", "error");
+        return;
+    }
+    
+    practiceWordEl.textContent = practiceState.currentWord.original;
+    practicePronunciationEl.textContent = `[${generatePronunciation(practiceState.currentWord.original)}]`;
+    practiceTipsEl.textContent = generatePronunciationTips(practiceState.currentWord.original);
+    
+    if (practiceFeedbackEl) {
+        practiceFeedbackEl.style.display = 'none';
+    }
+    
     recordBtn.classList.remove('recording');
     recordBtn.textContent = '🎤';
     
-    closeWordDetail();
-    
     // 모달 표시 - 강제 스타일 적용
     const practiceModal = document.getElementById('practiceModal');
-    practiceModal.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 3000 !important; padding: 20px !important; align-items: center !important; justify-content: center !important;';
-    practiceModal.classList.add('active');
+    if (practiceModal) {
+        practiceModal.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 3000 !important; padding: 20px !important; align-items: center !important; justify-content: center !important;';
+        practiceModal.classList.add('active');
+    } else {
+        showStatus("발음 연습 모달을 찾을 수 없습니다", "error");
+    }
 }
 
 function startWordPractice(wordKey = null) {
@@ -3189,6 +3345,9 @@ function startWordPractice(wordKey = null) {
         selectedWord = words[Math.floor(Math.random() * words.length)];
     }
     
+    // currentVocabWord 설정
+    currentVocabWord = selectedWord;
+    
     practiceState = {
         active: true,
         currentWord: selectedWord,
@@ -3198,16 +3357,37 @@ function startWordPractice(wordKey = null) {
         recordingStartTime: null
     };
     
-    document.getElementById('practiceWord').textContent = practiceState.currentWord.original;
-    document.getElementById('practicePronunciation').textContent = `[${generatePronunciation(practiceState.currentWord.original)}]`;
-    document.getElementById('practiceTips').textContent = generatePronunciationTips(practiceState.currentWord.original);
-    document.getElementById('practiceFeedback').style.display = 'none';
-    
+    // DOM 요소 존재 확인 후 업데이트
+    const practiceWordEl = document.getElementById('practiceWord');
+    const practicePronunciationEl = document.getElementById('practicePronunciation');
+    const practiceTipsEl = document.getElementById('practiceTips');
+    const practiceFeedbackEl = document.getElementById('practiceFeedback');
     const recordBtn = document.getElementById('recordBtn');
+    
+    if (!practiceWordEl || !practicePronunciationEl || !practiceTipsEl || !recordBtn) {
+        showStatus("발음 연습 UI 요소를 찾을 수 없습니다", "error");
+        return;
+    }
+    
+    practiceWordEl.textContent = selectedWord.original;
+    practicePronunciationEl.textContent = `[${generatePronunciation(selectedWord.original)}]`;
+    practiceTipsEl.textContent = generatePronunciationTips(selectedWord.original);
+    
+    if (practiceFeedbackEl) {
+        practiceFeedbackEl.style.display = 'none';
+    }
+    
     recordBtn.classList.remove('recording');
     recordBtn.textContent = '🎤';
     
-    els.practiceModal.classList.add('active');
+    // 모달 표시 - 단어장은 유지
+    const practiceModal = document.getElementById('practiceModal');
+    if (practiceModal) {
+        practiceModal.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 3000 !important; padding: 20px !important; align-items: center !important; justify-content: center !important;';
+        practiceModal.classList.add('active');
+    } else {
+        showStatus("발음 연습 모달을 찾을 수 없습니다", "error");
+    }
 }
 
 // ✅ 단어장 전용 TTS 함수 추가
@@ -3578,7 +3758,7 @@ function updateVocabularyList() {
                     <div class="vocabulary-word-sub">${word.translation} (정답률: ${accuracy}%)</div>
                 </div>
                 <div class="vocabulary-actions">
-                    <button class="vocabulary-btn quiz" onclick="event.stopPropagation(); startSingleWordQuiz('${word.original.replace(/'/g, "\\'")}');" title="퀴즈">🎯</button>
+                    <button class="vocabulary-btn listen" onclick="event.stopPropagation(); speakVocabularyWord('${word.original.replace(/'/g, "\\'")}');" title="듣기">🔊</button>
                     <button class="vocabulary-btn practice" onclick="event.stopPropagation(); startWordPractice('${word.original.replace(/'/g, "\\'")}');" title="연습">🎤</button>
                     <button class="vocabulary-btn remove" onclick="event.stopPropagation(); removeVocabulary('${word.original.replace(/'/g, "\\'")}');" title="삭제">🗑️</button>
                 </div>
@@ -4140,6 +4320,9 @@ window.listenPracticeWord = listenPracticeWord;
 window.toggleRecording = toggleRecording;
 window.nextPracticeWord = nextPracticeWord;
 window.closePractice = closePractice;
+window.showPreviousWord = showPreviousWord;
+window.showNextWord = showNextWord;
+window.speakVocabularyWord = speakVocabularyWord;
 // 🔧 추가: 인증 관련 전역 함수들
 window.toggleAuth = toggleAuth;
 window.toggleApiKeys = toggleApiKeys;
@@ -4183,6 +4366,30 @@ function closeAllModals() {
             }
         }
     });
+}
+
+// 이전 단어 보기
+function showPreviousWord() {
+    const words = Array.from(vocabularyDict.values());
+    if (words.length <= 1) return;
+    
+    const currentIndex = words.findIndex(word => word.original === currentVocabWord.original);
+    const previousIndex = currentIndex > 0 ? currentIndex - 1 : words.length - 1;
+    const previousWord = words[previousIndex];
+    
+    showWordDetail(previousWord.original);
+}
+
+// 다음 단어 보기
+function showNextWord() {
+    const words = Array.from(vocabularyDict.values());
+    if (words.length <= 1) return;
+    
+    const currentIndex = words.findIndex(word => word.original === currentVocabWord.original);
+    const nextIndex = currentIndex < words.length - 1 ? currentIndex + 1 : 0;
+    const nextWord = words[nextIndex];
+    
+    showWordDetail(nextWord.original);
 }
 
 // ✅ 초기화
