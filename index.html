@@ -3123,7 +3123,7 @@ function showWordDetail(original) {
 
 function closeWordDetail() {
     els.wordDetailModal.classList.remove('active');
-    currentVocabWord = null;
+    // currentVocabWord는 유지 (다른 곳에서 사용할 수 있음)
 }
 
 async function speakCurrentWord() {
@@ -3274,18 +3274,21 @@ function closeQuiz() {
 function startPronunciationPractice() {
     console.log('startPronunciationPractice 시작');
     console.log('currentVocabWord:', currentVocabWord);
-
+    
     if (!currentVocabWord) {
         showStatus("선택된 단어가 없습니다", "warning");
         return;
     }
+    
+    // ✅ 먼저 currentVocabWord를 안전하게 복사
+    const selectedWord = { ...currentVocabWord };
     
     // 단어 상세 모달만 닫기 (단어장은 유지)
     closeWordDetail();
     
     practiceState = {
         active: true,
-        currentWord: currentVocabWord,
+        currentWord: selectedWord,  // ← 복사된 객체 사용
         isRecording: false,
         practiceTime: Date.now(),
         lastRecording: null,
@@ -3304,15 +3307,15 @@ function startPronunciationPractice() {
     console.log('practicePronunciation:', practicePronunciationEl);
     console.log('practiceTips:', practiceTipsEl);
     console.log('recordBtn:', recordBtn);
-
+    
     if (!practiceWordEl || !practicePronunciationEl || !practiceTipsEl || !recordBtn) {
         showStatus("발음 연습 UI 요소를 찾을 수 없습니다", "error");
         return;
     }
     
-    practiceWordEl.textContent = practiceState.currentWord.original;
-    practicePronunciationEl.textContent = `[${generatePronunciation(practiceState.currentWord.original)}]`;
-    practiceTipsEl.textContent = generatePronunciationTips(practiceState.currentWord.original);
+    practiceWordEl.textContent = selectedWord.original;  // ← 복사된 객체 사용
+    practicePronunciationEl.textContent = `[${generatePronunciation(selectedWord.original)}]`;
+    practiceTipsEl.textContent = generatePronunciationTips(selectedWord.original);
     
     if (practiceFeedbackEl) {
         practiceFeedbackEl.style.display = 'none';
