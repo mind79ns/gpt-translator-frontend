@@ -1504,35 +1504,35 @@ async function initAuthSystem() {
             // 🔧 개선: 실제 토큰 검증
             const isValidToken = await verifyStoredToken(savedToken);
             
-            if (isValidToken) {
-                authToken = savedToken;
-                currentUser = JSON.parse(savedUser);
-                updateAuthUI(true);
-                
-                console.log('[Auth] 사용자 세션 복원 성공:', currentUser.email);
-                
-                // 🔧 추가: 사용자 데이터 새로고침
-                await refreshUserData();
+       if (isValidToken) {
+    authToken = savedToken;
+    currentUser = JSON.parse(savedUser);
+    updateAuthUI(true);
+    
+    console.log('[Auth] 사용자 세션 복원 성공:', currentUser.email);
+    
+    // 🔧 추가: 사용자 데이터 새로고침
+    await refreshUserData();
 
-           // ✨ 서버 데이터 동기화
-           serverSync.enable();
-           const syncResult = await serverSync.loadFromServer();
-            if (syncResult.success) {
-               showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다! (데이터 동기화 완료)`, "success");
-            } else {
-               showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다!`, "success");
-            }
-            } else {
-                console.log('[Auth] 저장된 토큰이 만료되었습니다');
-                clearAuthData();
-                updateAuthUI(false);
-                showStatus("세션이 만료되었습니다. 다시 로그인해주세요", "warning");
-            }
-        } catch (error) {
-            console.error('[Auth] 세션 복원 실패:', error);
-            clearAuthData();
-            updateAuthUI(false);
+    // ✨ 서버 데이터 동기화 강화
+    console.log('[Auth] 서버 동기화 시작...');
+    serverSync.enable();
+    
+    try {
+        const syncResult = await serverSync.loadFromServer();
+        console.log('[Auth] 서버 동기화 결과:', syncResult);
+        
+        if (syncResult.success) {
+            console.log('[Auth] 서버 동기화 성공');
+            showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다! (데이터 동기화 완료)`, "success");
+        } else {
+            console.warn('[Auth] 서버 동기화 실패:', syncResult.error);
+            showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화 실패: ${syncResult.error})`, "warning");
         }
+    } catch (syncError) {
+        console.error('[Auth] 서버 동기화 오류:', syncError);
+        showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화 오류)`, "warning");
+    }
     } else {
         console.log('[Auth] 저장된 인증 정보 없음 - 게스트 모드');
         updateAuthUI(false);
@@ -1874,21 +1874,38 @@ async function handleLogin() {
         const result = await response.json();
         
         if (result.success) {
-            currentUser = result.user;
-            authToken = result.token;
-            
-            // 로컬 스토리지에 저장
-            localStorage.setItem('authToken', authToken);
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            
-            updateAuthUI(true);
-            toggleAuth(); // 모달 닫기
-            
-            showStatus(`✅ ${currentUser.displayName || currentUser.email}님 환영합니다!`, "success");
-            
-            // 폼 초기화
-            document.getElementById('loginEmail').value = '';
-            document.getElementById('loginPassword').value = '';
+    currentUser = result.user;
+    authToken = result.token;
+    
+    // 로컬 스토리지에 저장
+    localStorage.setItem('authToken', authToken);
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    
+    updateAuthUI(true);
+    toggleAuth(); // 모달 닫기
+    
+    console.log('[Auth] 로그인 성공, 동기화 시작...', currentUser.email);
+    
+    // ✨ 즉시 서버 동기화 실행
+    serverSync.enable();
+    
+    try {
+        const syncResult = await serverSync.loadFromServer();
+        console.log('[Auth] 로그인 후 동기화 결과:', syncResult);
+        
+        if (syncResult.success) {
+            showStatus(`✅ ${currentUser.displayName || currentUser.email}님 환영합니다! (데이터 동기화 완료)`, "success");
+        } else {
+            showStatus(`✅ ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화: ${syncResult.error})`, "warning");
+        }
+    } catch (syncError) {
+        console.error('[Auth] 로그인 후 동기화 오류:', syncError);
+        showStatus(`✅ ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화 오류 발생)`, "warning");
+    }
+    
+    // 폼 초기화
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
             
         } else {
             showStatus(`로그인 실패: ${result.error}`, "error");
@@ -3856,12 +3873,32 @@ function saveVocabularyData() {
             stats: vocabularyStats,
             lastSaved: new Date().toISOString()
         };
-        localStorage.setItem('vocabularyData', JSON.stringify(data));
         
-        // ✨ 서버에도 저장
-        serverSync.saveVocabulary();
+        // 로컬 저장
+        localStorage.setItem('vocabularyData', JSON.stringify(data));
+        console.log('[Vocabulary] 로컬 저장 완료:', vocabularyDict.size, '개');
+        
+        // ✨ 서버에 저장 (강화된 버전)
+        if (authToken && currentUser) {
+            console.log('[Vocabulary] 서버 저장 시작...');
+            serverSync.saveVocabulary()
+                .then(result => {
+                    if (result && result.success) {
+                        console.log('[Vocabulary] 서버 저장 성공');
+                    } else {
+                        console.warn('[Vocabulary] 서버 저장 실패:', result?.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('[Vocabulary] 서버 저장 오류:', error);
+                });
+        } else {
+            console.log('[Vocabulary] 로그인하지 않음 - 로컬만 저장');
+        }
+        
     } catch (error) {
         console.error('단어장 데이터 저장 실패:', error);
+        showStatus("단어장 저장 중 오류가 발생했습니다", "error");
     }
 }
 
@@ -4461,92 +4498,129 @@ const serverSync = {
         console.log('[ServerSync] 동기화 비활성화');
     },
     
-    // 전체 사용자 데이터 서버에서 로드
-    async loadFromServer() {
-        if (!this.isEnabled || !authToken) {
-            console.log('[ServerSync] 동기화 비활성화 상태 - 서버 로드 스킵');
-            return { success: false, error: '로그인 필요' };
+    // 전체 사용자 데이터 서버에서 로드 (개선된 버전)
+async loadFromServer() {
+    if (!this.isEnabled || !authToken) {
+        console.log('[ServerSync] 동기화 비활성화 상태 - 서버 로드 스킵');
+        return { success: false, error: '로그인 필요' };
+    }
+    
+    try {
+        console.log('[ServerSync] 서버에서 사용자 데이터 로드 시작...');
+        console.log('[ServerSync] 사용 중인 토큰:', authToken ? '토큰 존재' : '토큰 없음');
+        console.log('[ServerSync] API URL:', AUTH_API_URL);
+        
+        const response = await fetch(AUTH_API_URL, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                action: 'get-user-data'
+            })
+        });
+        
+        console.log('[ServerSync] 서버 응답 상태:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[ServerSync] 서버 응답 오류:', errorText);
+            throw new Error(`서버 응답 오류: ${response.status} - ${errorText}`);
         }
         
-        try {
-            console.log('[ServerSync] 서버에서 사용자 데이터 로드 중...');
+        const result = await response.json();
+        console.log('[ServerSync] 서버 응답 데이터:', result);
+        
+        if (result.success && result.userData) {
+            // 서버 데이터를 로컬에 적용
+            console.log('[ServerSync] 서버 데이터 적용 시작...');
+            await this.applyServerData(result.userData);
+            this.lastSyncTime = Date.now();
             
-            const response = await fetch(AUTH_API_URL, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                },
-                body: JSON.stringify({
-                    action: 'get-user-data'
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`서버 응답 오류: ${response.status}`);
-            }
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                // 서버 데이터를 로컬에 적용
-                await this.applyServerData(result.userData);
-                this.lastSyncTime = Date.now();
-                
-                console.log('[ServerSync] 서버 데이터 로드 완료');
-                return { success: true, data: result.userData };
-            } else {
-                throw new Error(result.error || '서버 데이터 로드 실패');
-            }
-            
-        } catch (error) {
-            console.error('[ServerSync] 서버 데이터 로드 오류:', error);
-            return { success: false, error: error.message };
+            console.log('[ServerSync] 서버 데이터 로드 완료');
+            return { success: true, data: result.userData };
+        } else {
+            console.warn('[ServerSync] 서버에서 데이터 없음 또는 실패:', result.error);
+            return { success: false, error: result.error || '서버 데이터 없음' };
         }
-    },
+        
+    } catch (error) {
+        console.error('[ServerSync] 서버 데이터 로드 오류:', error);
+        return { success: false, error: error.message };
+    }
+},
     
-    // 서버 데이터를 로컬에 적용
-    async applyServerData(userData) {
-        try {
-            // 1. 단어장 적용
-            if (userData.vocabulary && userData.vocabulary.length > 0) {
+    // 서버 데이터를 로컬에 적용 (개선된 버전)
+async applyServerData(userData) {
+    try {
+        console.log('[ServerSync] 서버 데이터 적용 시작:', userData);
+        
+        // 1. 단어장 적용
+        if (userData.vocabulary) {
+            console.log('[ServerSync] 단어장 데이터 확인:', userData.vocabulary);
+            
+            if (Array.isArray(userData.vocabulary) && userData.vocabulary.length > 0) {
+                console.log('[ServerSync] 단어장 데이터 형태: 배열, 길이:', userData.vocabulary.length);
+                
+                // 기존 단어장 초기화
                 vocabularyDict.clear();
+                
+                // 서버 데이터를 Map으로 변환
                 userData.vocabulary.forEach(([original, wordData]) => {
+                    console.log('[ServerSync] 단어 추가:', original, wordData);
                     vocabularyDict.set(original, wordData);
                 });
+                
+                // UI 업데이트
                 updateVocabularyList();
                 updateVocabularyStats();
+                
                 console.log('[ServerSync] 단어장 동기화 완료:', userData.vocabulary.length, '개');
+                showStatus(`📚 단어장 동기화 완료: ${userData.vocabulary.length}개`, "success");
+            } else {
+                console.log('[ServerSync] 서버에 단어장 데이터 없음');
+                showStatus("📚 서버에 저장된 단어장이 없습니다", "info");
             }
-            
-            // 2. 사용자 설정 적용
-            if (userData.settings) {
-                this.applySettings(userData.settings);
-                console.log('[ServerSync] 사용자 설정 동기화 완료');
-            }
-            
-            // 3. AI 설정 적용
-            if (userData.aiSettings) {
-                this.applyAISettings(userData.aiSettings);
-                console.log('[ServerSync] AI 설정 동기화 완료');
-            }
-            
-            // 4. 번역 기록 적용
-            if (userData.history && userData.history.length > 0) {
-                localStorage.setItem('translationHistory', JSON.stringify(userData.history.map(h => ({
-                    source: h.source_text,
-                    translation: h.translation,
-                    sourceLang: h.source_lang,
-                    targetLang: h.target_lang,
-                    time: new Date(h.created_at).toLocaleString('ko-KR')
-                }))));
-                console.log('[ServerSync] 번역 기록 동기화 완료:', userData.history.length, '개');
-            }
-            
-        } catch (error) {
-            console.error('[ServerSync] 데이터 적용 오류:', error);
+        } else {
+            console.log('[ServerSync] userData에 vocabulary 필드 없음');
         }
-    },
+        
+        // 2. 사용자 설정 적용
+        if (userData.settings) {
+            console.log('[ServerSync] 사용자 설정 적용:', userData.settings);
+            this.applySettings(userData.settings);
+            console.log('[ServerSync] 사용자 설정 동기화 완료');
+        }
+        
+        // 3. AI 설정 적용
+        if (userData.aiSettings) {
+            console.log('[ServerSync] AI 설정 적용:', userData.aiSettings);
+            this.applyAISettings(userData.aiSettings);
+            console.log('[ServerSync] AI 설정 동기화 완료');
+        }
+        
+        // 4. 번역 기록 적용
+        if (userData.history && userData.history.length > 0) {
+            console.log('[ServerSync] 번역 기록 적용:', userData.history.length, '개');
+            localStorage.setItem('translationHistory', JSON.stringify(userData.history.map(h => ({
+                source: h.source_text,
+                translation: h.translation,
+                sourceLang: h.source_lang,
+                targetLang: h.target_lang,
+                time: new Date(h.created_at).toLocaleString('ko-KR'),
+                isAI: h.is_ai_translation || false
+            }))));
+            console.log('[ServerSync] 번역 기록 동기화 완료:', userData.history.length, '개');
+        }
+        
+        console.log('[ServerSync] 모든 데이터 적용 완료');
+        
+    } catch (error) {
+        console.error('[ServerSync] 데이터 적용 오류:', error);
+        showStatus("동기화 중 오류가 발생했습니다", "error");
+    }
+},
     
     // 사용자 설정 적용
     applySettings(settings) {
@@ -4615,31 +4689,57 @@ const serverSync = {
         });
     },
     
-    // 단어장 서버 저장
-    async saveVocabulary() {
-        if (!this.isEnabled || !authToken) return;
+ // 단어장 서버 저장 (개선된 버전)
+async saveVocabulary() {
+    if (!this.isEnabled || !authToken) {
+        console.log('[ServerSync] 동기화 비활성화 - 단어장 서버 저장 스킵');
+        return { success: false, error: '로그인 필요' };
+    }
+    
+    try {
+        console.log('[ServerSync] 단어장 서버 저장 시작...');
+        console.log('[ServerSync] 현재 단어장 크기:', vocabularyDict.size);
         
-        try {
-            const response = await fetch(AUTH_API_URL, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                },
-                body: JSON.stringify({
-                    action: 'save-vocabulary',
-                    vocabularyData: vocabularyDict
-                })
-            });
-            
-            const result = await response.json();
-            if (result.success) {
-                console.log('[ServerSync] 단어장 서버 저장 완료');
-            }
-        } catch (error) {
-            console.error('[ServerSync] 단어장 서버 저장 실패:', error);
+        // vocabularyDict을 서버 전송용 형태로 변환
+        const vocabularyArray = Array.from(vocabularyDict.entries());
+        console.log('[ServerSync] 전송할 단어장 데이터:', vocabularyArray);
+        
+        const response = await fetch(AUTH_API_URL, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                action: 'save-vocabulary',
+                vocabularyData: vocabularyArray // Map을 배열로 변환해서 전송
+            })
+        });
+        
+        console.log('[ServerSync] 단어장 저장 응답 상태:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[ServerSync] 단어장 저장 응답 오류:', errorText);
+            throw new Error(`서버 응답 오류: ${response.status}`);
         }
-    },
+        
+        const result = await response.json();
+        console.log('[ServerSync] 단어장 저장 결과:', result);
+        
+        if (result.success) {
+            console.log('[ServerSync] 단어장 서버 저장 완료');
+            return { success: true };
+        } else {
+            console.error('[ServerSync] 단어장 저장 실패:', result.error);
+            return { success: false, error: result.error };
+        }
+        
+    } catch (error) {
+        console.error('[ServerSync] 단어장 서버 저장 실패:', error);
+        return { success: false, error: error.message };
+    }
+},
     
     // 사용자 설정 서버 저장
     async saveSettings() {
