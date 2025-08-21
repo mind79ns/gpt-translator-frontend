@@ -1513,8 +1513,15 @@ async function initAuthSystem() {
                 
                 // 🔧 추가: 사용자 데이터 새로고침
                 await refreshUserData();
-                
-                showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다!`, "success");
+
+           // ✨ 서버 데이터 동기화
+           serverSync.enable();
+           const syncResult = await serverSync.loadFromServer();
+            if (syncResult.success) {
+               showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다! (데이터 동기화 완료)`, "success");
+            } else {
+               showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다!`, "success");
+            }
             } else {
                 console.log('[Auth] 저장된 토큰이 만료되었습니다');
                 clearAuthData();
@@ -2037,6 +2044,9 @@ function clearAuthData() {
     authToken = null;
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentUser');
+    
+    // ✨ 서버 동기화 비활성화
+    serverSync.disable();
 }
 
 // 🔐 인증 UI 업데이트 (완전 개선)
@@ -3847,6 +3857,9 @@ function saveVocabularyData() {
             lastSaved: new Date().toISOString()
         };
         localStorage.setItem('vocabularyData', JSON.stringify(data));
+        
+        // ✨ 서버에도 저장
+        serverSync.saveVocabulary();
     } catch (error) {
         console.error('단어장 데이터 저장 실패:', error);
     }
@@ -4178,6 +4191,9 @@ function saveAISettings() {
         terminologyDict: Array.from(terminologyDict.entries()) // 전문용어 사전 저장
     };
     localStorage.setItem('aiSettings', JSON.stringify(aiSettings));
+
+    // ✨ 서버에도 저장
+    serverSync.saveAISettings();
 }
 
 function loadAISettings() {
@@ -4275,7 +4291,24 @@ function playNextInQueue(){if(0===audioQueue.length)return void(isQueuePlaying=!
 function getStats(){const e=localStorage.getItem("translationStats");return e?JSON.parse(e):{totalTranslations:0,todayTranslations:0,lastDate:(new Date).toDateString()}}
 function updateStats(e){const t=getStats();(new Date).toDateString()!==t.lastDate&&(t.todayTranslations=0,t.lastDate=(new Date).toDateString()),e||(t.totalTranslations++,t.todayTranslations++),localStorage.setItem("translationStats",JSON.stringify(t)),displayStats()}
 function displayStats(){const e=getStats();els.todayTranslations.textContent=e.todayTranslations,els.totalTranslations.textContent=e.totalTranslations;const t=cacheManager.stats.hits+cacheManager.stats.misses>0?Math.round(cacheManager.stats.hits/(cacheManager.stats.hits+cacheManager.stats.misses)*100):0;els.cacheHitRate.textContent=`${t}%`}
-function saveToHistory(e,t,a,s){const i=JSON.parse(localStorage.getItem("translationHistory")||"[]");i.unshift({source:e,translation:t,sourceLang:a,targetLang:s,time:(new Date).toLocaleString("ko-KR")}),i.length>50&&i.pop(),localStorage.setItem("translationHistory",JSON.stringify(i))}
+function saveToHistory(e, t, a, s) {
+    const i = JSON.parse(localStorage.getItem("translationHistory") || "[]");
+    const historyItem = {
+        source: e,
+        translation: t,
+        sourceLang: a,
+        targetLang: s,
+        time: (new Date).toLocaleString("ko-KR"),
+        isAI: aiContextMode
+    };
+    
+    i.unshift(historyItem);
+    i.length > 50 && i.pop();
+    localStorage.setItem("translationHistory", JSON.stringify(i));
+    
+    // ✨ 서버에도 저장
+    serverSync.saveTranslationHistory(historyItem);
+}
 function showHistory(){const e=JSON.parse(localStorage.getItem("translationHistory")||"[]");els.historyList.innerHTML=e.length?e.map((e,t)=>`<div class="recent-play-item" onclick="loadFromHistory(${t})"><div><div class="recent-play-text" style="white-space: normal;"><b>${e.sourceLang}:</b> ${e.source}</div><div class="recent-play-text" style="white-space: normal; color: var(--primary);"><b>${e.targetLang}:</b> ${e.translation}</div></div><small style="color: var(--text-secondary);">${e.time}</small></div>`).join(""):`<p style="text-align:center;">기록 없음</p>`,els.historyModal.classList.add("active")}
 function hideHistory(){els.historyModal.classList.remove("active")}
 function loadFromHistory(e){const t=JSON.parse(localStorage.getItem("translationHistory"))[e];t&&(els.inputText.value=t.source,els.sourceLangSelect.value=t.sourceLang,els.targetLangSelect.value=t.targetLang,hideHistory(),handleTranslate())}
@@ -4301,7 +4334,19 @@ function updateRecentPlays(){
 }
 
 async function replayRecent(e){const t=cacheManager.recentPlays[e],a="google"===t.engine?els.googleVoiceSelect.value:els.voiceSelect.value,s=`${t.translation}:${t.lang}:${t.engine}:${a}`,i=cacheManager.getTTS(s);if(i)return void queueAudioBlob(i);currentTranslation=t.translation,currentSource=t.text,await handleSpeak()}
-function saveSettings(){localStorage.setItem("ttsEngine",els.ttsEngineMode.value),localStorage.setItem("autoThreshold",els.autoThreshold.value),localStorage.setItem("voice",els.voiceSelect.value),localStorage.setItem("googleVoice",els.googleVoiceSelect.value),localStorage.setItem("volume",els.volumeControl.value),localStorage.setItem("sourceLang",els.sourceLangSelect.value),localStorage.setItem("targetLang",els.targetLangSelect.value),localStorage.setItem("pronunciationEnabled",isPronunciationEnabled)}
+function saveSettings() {
+    localStorage.setItem("ttsEngine", els.ttsEngineMode.value);
+    localStorage.setItem("autoThreshold", els.autoThreshold.value);
+    localStorage.setItem("voice", els.voiceSelect.value);
+    localStorage.setItem("googleVoice", els.googleVoiceSelect.value);
+    localStorage.setItem("volume", els.volumeControl.value);
+    localStorage.setItem("sourceLang", els.sourceLangSelect.value);
+    localStorage.setItem("targetLang", els.targetLangSelect.value);
+    localStorage.setItem("pronunciationEnabled", isPronunciationEnabled);
+    
+    // ✨ 서버에도 저장
+    serverSync.saveSettings();
+}
 function loadSettings(){document.documentElement.setAttribute("data-theme",localStorage.getItem("theme")||"light"),isPronunciationEnabled="false"!==localStorage.getItem("pronunciationEnabled"),els.pronunciationToggle.classList.toggle("active",isPronunciationEnabled),els.pronunciationSection.style.display=isPronunciationEnabled?"block":"none",els.sourceLangSelect.value=localStorage.getItem("sourceLang")||"Korean",els.targetLangSelect.value=localStorage.getItem("targetLang")||"Vietnamese",els.ttsEngineMode.value=localStorage.getItem("ttsEngine")||"auto",els.autoThreshold.value=localStorage.getItem("autoThreshold")||"50",els.thresholdValue.textContent=`${els.autoThreshold.value}자`,els.voiceSelect.value=localStorage.getItem("voice")||"nova",els.googleVoiceSelect.value=localStorage.getItem("googleVoice")||"vi-VN-Standard-A",els.volumeControl.value=localStorage.getItem("volume")||"0.8",els.volumeValue.textContent=`${Math.round(100*els.volumeControl.value)}%`,updateAutoModeVisibility(),document.getElementById("dailyBudget").value=localStorage.getItem("dailyBudget")||"1.00",document.getElementById("monthlyBudget").value=localStorage.getItem("monthlyBudget")||"30.00"}
 function updateAutoModeVisibility(){const e=els.ttsEngineMode.value;els.autoModeSettings.style.display="auto"===e||"smart"===e?"grid":"none"}
 function togglePronunciationView(){const e=els.pronunciationContent;e.style.display="none"===e.style.display||""===e.style.display?"block":"none",els.pronToggleIcon.textContent="block"===e.style.display?"▼":"▶"}
@@ -4394,7 +4439,314 @@ function showNextWord() {
     
     showWordDetail(nextWord.original);
 }
+// ===================================================
+// 🔄 서버 데이터 동기화 시스템
+// ===================================================
 
+// 서버 동기화 관리자
+const serverSync = {
+    isEnabled: false,
+    lastSyncTime: null,
+    
+    // 동기화 활성화 (로그인 시)
+    enable() {
+        this.isEnabled = !!authToken;
+        console.log('[ServerSync] 동기화 활성화:', this.isEnabled);
+    },
+    
+    // 동기화 비활성화 (로그아웃 시)
+    disable() {
+        this.isEnabled = false;
+        this.lastSyncTime = null;
+        console.log('[ServerSync] 동기화 비활성화');
+    },
+    
+    // 전체 사용자 데이터 서버에서 로드
+    async loadFromServer() {
+        if (!this.isEnabled || !authToken) {
+            console.log('[ServerSync] 동기화 비활성화 상태 - 서버 로드 스킵');
+            return { success: false, error: '로그인 필요' };
+        }
+        
+        try {
+            console.log('[ServerSync] 서버에서 사용자 데이터 로드 중...');
+            
+            const response = await fetch(AUTH_API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    action: 'get-user-data'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`서버 응답 오류: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // 서버 데이터를 로컬에 적용
+                await this.applyServerData(result.userData);
+                this.lastSyncTime = Date.now();
+                
+                console.log('[ServerSync] 서버 데이터 로드 완료');
+                return { success: true, data: result.userData };
+            } else {
+                throw new Error(result.error || '서버 데이터 로드 실패');
+            }
+            
+        } catch (error) {
+            console.error('[ServerSync] 서버 데이터 로드 오류:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    // 서버 데이터를 로컬에 적용
+    async applyServerData(userData) {
+        try {
+            // 1. 단어장 적용
+            if (userData.vocabulary && userData.vocabulary.length > 0) {
+                vocabularyDict.clear();
+                userData.vocabulary.forEach(([original, wordData]) => {
+                    vocabularyDict.set(original, wordData);
+                });
+                updateVocabularyList();
+                updateVocabularyStats();
+                console.log('[ServerSync] 단어장 동기화 완료:', userData.vocabulary.length, '개');
+            }
+            
+            // 2. 사용자 설정 적용
+            if (userData.settings) {
+                this.applySettings(userData.settings);
+                console.log('[ServerSync] 사용자 설정 동기화 완료');
+            }
+            
+            // 3. AI 설정 적용
+            if (userData.aiSettings) {
+                this.applyAISettings(userData.aiSettings);
+                console.log('[ServerSync] AI 설정 동기화 완료');
+            }
+            
+            // 4. 번역 기록 적용
+            if (userData.history && userData.history.length > 0) {
+                localStorage.setItem('translationHistory', JSON.stringify(userData.history.map(h => ({
+                    source: h.source_text,
+                    translation: h.translation,
+                    sourceLang: h.source_lang,
+                    targetLang: h.target_lang,
+                    time: new Date(h.created_at).toLocaleString('ko-KR')
+                }))));
+                console.log('[ServerSync] 번역 기록 동기화 완료:', userData.history.length, '개');
+            }
+            
+        } catch (error) {
+            console.error('[ServerSync] 데이터 적용 오류:', error);
+        }
+    },
+    
+    // 사용자 설정 적용
+    applySettings(settings) {
+        if (els.ttsEngineMode) els.ttsEngineMode.value = settings.ttsEngine || 'auto';
+        if (els.voiceSelect) els.voiceSelect.value = settings.voiceSelection || 'nova';
+        if (els.googleVoiceSelect) els.googleVoiceSelect.value = settings.googleVoice || 'vi-VN-Standard-A';
+        if (els.volumeControl) {
+            els.volumeControl.value = settings.volume || 0.8;
+            if (els.volumeValue) els.volumeValue.textContent = `${Math.round(100 * settings.volume)}%`;
+        }
+        if (els.sourceLangSelect) els.sourceLangSelect.value = settings.sourceLang || 'Korean';
+        if (els.targetLangSelect) els.targetLangSelect.value = settings.targetLang || 'Vietnamese';
+        
+        // 테마 적용
+        if (settings.theme) {
+            document.documentElement.setAttribute('data-theme', settings.theme);
+        }
+        
+        // 발음 도우미 설정
+        isPronunciationEnabled = settings.pronunciationEnabled !== false;
+        if (els.pronunciationToggle) {
+            els.pronunciationToggle.classList.toggle('active', isPronunciationEnabled);
+        }
+        if (els.pronunciationSection) {
+            els.pronunciationSection.style.display = isPronunciationEnabled ? 'block' : 'none';
+        }
+        
+        // 예산 설정
+        const dailyBudgetEl = document.getElementById('dailyBudget');
+        const monthlyBudgetEl = document.getElementById('monthlyBudget');
+        if (dailyBudgetEl) dailyBudgetEl.value = settings.dailyBudget || 1.00;
+        if (monthlyBudgetEl) monthlyBudgetEl.value = settings.monthlyBudget || 30.00;
+    },
+    
+    // AI 설정 적용
+    applyAISettings(aiSettings) {
+        aiContextMode = aiSettings.aiContextMode || false;
+        currentTranslationStyle = aiSettings.translationStyle || 'balanced';
+        qualityLevel = aiSettings.qualityLevel || 3;
+        
+        // 전문용어 사전 적용
+        if (aiSettings.terminologyDict) {
+            terminologyDict.clear();
+            Object.entries(aiSettings.terminologyDict).forEach(([key, value]) => {
+                terminologyDict.set(key, value);
+            });
+            updateTerminologyList();
+        }
+        
+        // 번역 컨텍스트 적용
+        if (aiSettings.translationContext) {
+            translationContext = [...aiSettings.translationContext];
+        }
+        
+        // UI 업데이트
+        if (els.aiToggle) els.aiToggle.classList.toggle('active', aiContextMode);
+        if (els.aiContextBadge) els.aiContextBadge.classList.toggle('active', aiContextMode);
+        if (els.translateBtn) els.translateBtn.classList.toggle('ai-enhanced', aiContextMode);
+        if (els.translateBtnText) els.translateBtnText.textContent = aiContextMode ? 'AI 번역' : '번역하기';
+        if (els.aiSettingsSection) els.aiSettingsSection.style.display = aiContextMode ? 'block' : 'none';
+        if (els.qualitySlider) els.qualitySlider.value = qualityLevel;
+        
+        // 스타일 버튼 업데이트
+        document.querySelectorAll('.style-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.style === currentTranslationStyle);
+        });
+    },
+    
+    // 단어장 서버 저장
+    async saveVocabulary() {
+        if (!this.isEnabled || !authToken) return;
+        
+        try {
+            const response = await fetch(AUTH_API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    action: 'save-vocabulary',
+                    vocabularyData: vocabularyDict
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                console.log('[ServerSync] 단어장 서버 저장 완료');
+            }
+        } catch (error) {
+            console.error('[ServerSync] 단어장 서버 저장 실패:', error);
+        }
+    },
+    
+    // 사용자 설정 서버 저장
+    async saveSettings() {
+        if (!this.isEnabled || !authToken) return;
+        
+        try {
+            const settings = {
+                ttsEngine: els.ttsEngineMode?.value || 'auto',
+                voiceSelection: els.voiceSelect?.value || 'nova',
+                googleVoice: els.googleVoiceSelect?.value || 'vi-VN-Standard-A',
+                volume: parseFloat(els.volumeControl?.value || 0.8),
+                sourceLang: els.sourceLangSelect?.value || 'Korean',
+                targetLang: els.targetLangSelect?.value || 'Vietnamese',
+                theme: document.documentElement.getAttribute('data-theme') || 'light',
+                pronunciationEnabled: isPronunciationEnabled,
+                autoThreshold: parseInt(els.autoThreshold?.value || 50),
+                dailyBudget: parseFloat(document.getElementById('dailyBudget')?.value || 1.00),
+                monthlyBudget: parseFloat(document.getElementById('monthlyBudget')?.value || 30.00)
+            };
+            
+            const response = await fetch(AUTH_API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    action: 'save-settings',
+                    settings: settings
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                console.log('[ServerSync] 사용자 설정 서버 저장 완료');
+            }
+        } catch (error) {
+            console.error('[ServerSync] 사용자 설정 서버 저장 실패:', error);
+        }
+    },
+    
+    // AI 설정 서버 저장
+    async saveAISettings() {
+        if (!this.isEnabled || !authToken) return;
+        
+        try {
+            const aiSettings = {
+                aiContextMode: aiContextMode,
+                translationStyle: currentTranslationStyle,
+                qualityLevel: qualityLevel,
+                terminologyDict: Object.fromEntries(terminologyDict),
+                translationContext: translationContext.slice(-20) // 최근 20개만
+            };
+            
+            const response = await fetch(AUTH_API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    action: 'save-ai-settings',
+                    aiSettings: aiSettings
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                console.log('[ServerSync] AI 설정 서버 저장 완료');
+            }
+        } catch (error) {
+            console.error('[ServerSync] AI 설정 서버 저장 실패:', error);
+        }
+    },
+    
+    // 번역 기록 서버 저장
+    async saveTranslationHistory(historyData) {
+        if (!this.isEnabled || !authToken) return;
+        
+        try {
+            const response = await fetch(AUTH_API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    action: 'save-translation-history',
+                    historyData: {
+                        sourceText: historyData.source,
+                        translation: historyData.translation,
+                        sourceLang: historyData.sourceLang,
+                        targetLang: historyData.targetLang,
+                        isAI: historyData.isAI || false
+                    }
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                console.log('[ServerSync] 번역 기록 서버 저장 완료');
+            }
+        } catch (error) {
+            console.error('[ServerSync] 번역 기록 서버 저장 실패:', error);
+        }
+    }
+};
 // ✅ 초기화
 document.addEventListener("DOMContentLoaded", function() {
     try {
