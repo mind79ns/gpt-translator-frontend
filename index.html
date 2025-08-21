@@ -1491,7 +1491,7 @@ const AUTH_API_URL = 'https://knstranslator.netlify.app/.netlify/functions/auth'
 let currentUser = null;
 let authToken = null;
 
-// 🔐 인증 상태 관리 (개선)
+// 🔐 사용자 인증 시스템 (완전한 함수)
 async function initAuthSystem() {
     console.log('[Auth] 시스템 초기화 시작');
     
@@ -1504,35 +1504,46 @@ async function initAuthSystem() {
             // 🔧 개선: 실제 토큰 검증
             const isValidToken = await verifyStoredToken(savedToken);
             
-       if (isValidToken) {
-    authToken = savedToken;
-    currentUser = JSON.parse(savedUser);
-    updateAuthUI(true);
-    
-    console.log('[Auth] 사용자 세션 복원 성공:', currentUser.email);
-    
-    // 🔧 추가: 사용자 데이터 새로고침
-    await refreshUserData();
+            if (isValidToken) {
+                authToken = savedToken;
+                currentUser = JSON.parse(savedUser);
+                updateAuthUI(true);
+                
+                console.log('[Auth] 사용자 세션 복원 성공:', currentUser.email);
+                
+                // 🔧 추가: 사용자 데이터 새로고침
+                await refreshUserData();
 
-    // ✨ 서버 데이터 동기화 강화
-    console.log('[Auth] 서버 동기화 시작...');
-    serverSync.enable();
-    
-    try {
-        const syncResult = await serverSync.loadFromServer();
-        console.log('[Auth] 서버 동기화 결과:', syncResult);
-        
-        if (syncResult.success) {
-            console.log('[Auth] 서버 동기화 성공');
-            showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다! (데이터 동기화 완료)`, "success");
-        } else {
-            console.warn('[Auth] 서버 동기화 실패:', syncResult.error);
-            showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화 실패: ${syncResult.error})`, "warning");
+                // ✨ 서버 데이터 동기화 강화
+                console.log('[Auth] 서버 동기화 시작...');
+                serverSync.enable();
+                
+                try {
+                    const syncResult = await serverSync.loadFromServer();
+                    console.log('[Auth] 서버 동기화 결과:', syncResult);
+                    
+                    if (syncResult.success) {
+                        console.log('[Auth] 서버 동기화 성공');
+                        showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다! (데이터 동기화 완료)`, "success");
+                    } else {
+                        console.warn('[Auth] 서버 동기화 실패:', syncResult.error);
+                        showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화 실패: ${syncResult.error})`, "warning");
+                    }
+                } catch (syncError) {
+                    console.error('[Auth] 서버 동기화 오류:', syncError);
+                    showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화 오류)`, "warning");
+                }
+            } else {
+                console.log('[Auth] 저장된 토큰이 만료되었습니다');
+                clearAuthData();
+                updateAuthUI(false);
+                showStatus("세션이 만료되었습니다. 다시 로그인해주세요", "warning");
+            }
+        } catch (error) {
+            console.error('[Auth] 세션 복원 실패:', error);
+            clearAuthData();
+            updateAuthUI(false);
         }
-    } catch (syncError) {
-        console.error('[Auth] 서버 동기화 오류:', syncError);
-        showStatus(`👋 ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화 오류)`, "warning");
-    }
     } else {
         console.log('[Auth] 저장된 인증 정보 없음 - 게스트 모드');
         updateAuthUI(false);
@@ -1740,7 +1751,7 @@ function setupAuthEventListeners() {
     }
 }
 
-// 🔧 로그인 클릭 핸들러 (디버그용)
+// 🔧 로그인 클릭 핸들러 (누락된 함수 추가)
 function handleLoginClick() {
     if (currentUser) {
         // 로그인된 상태: 사용자에게 로그아웃할지 API 키를 관리할지 선택권을 줍니다.
@@ -1848,7 +1859,7 @@ function switchAuthTab(tabName) {
     }
 }
 
-// 🔐 로그인 처리
+// 🔐 로그인 처리 (완전한 함수)
 async function handleLogin() {
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
@@ -1874,38 +1885,38 @@ async function handleLogin() {
         const result = await response.json();
         
         if (result.success) {
-    currentUser = result.user;
-    authToken = result.token;
-    
-    // 로컬 스토리지에 저장
-    localStorage.setItem('authToken', authToken);
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    
-    updateAuthUI(true);
-    toggleAuth(); // 모달 닫기
-    
-    console.log('[Auth] 로그인 성공, 동기화 시작...', currentUser.email);
-    
-    // ✨ 즉시 서버 동기화 실행
-    serverSync.enable();
-    
-    try {
-        const syncResult = await serverSync.loadFromServer();
-        console.log('[Auth] 로그인 후 동기화 결과:', syncResult);
-        
-        if (syncResult.success) {
-            showStatus(`✅ ${currentUser.displayName || currentUser.email}님 환영합니다! (데이터 동기화 완료)`, "success");
-        } else {
-            showStatus(`✅ ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화: ${syncResult.error})`, "warning");
-        }
-    } catch (syncError) {
-        console.error('[Auth] 로그인 후 동기화 오류:', syncError);
-        showStatus(`✅ ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화 오류 발생)`, "warning");
-    }
-    
-    // 폼 초기화
-    document.getElementById('loginEmail').value = '';
-    document.getElementById('loginPassword').value = '';
+            currentUser = result.user;
+            authToken = result.token;
+            
+            // 로컬 스토리지에 저장
+            localStorage.setItem('authToken', authToken);
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            
+            updateAuthUI(true);
+            toggleAuth(); // 모달 닫기
+            
+            console.log('[Auth] 로그인 성공, 동기화 시작...', currentUser.email);
+            
+            // ✨ 즉시 서버 동기화 실행
+            serverSync.enable();
+            
+            try {
+                const syncResult = await serverSync.loadFromServer();
+                console.log('[Auth] 로그인 후 동기화 결과:', syncResult);
+                
+                if (syncResult.success) {
+                    showStatus(`✅ ${currentUser.displayName || currentUser.email}님 환영합니다! (데이터 동기화 완료)`, "success");
+                } else {
+                    showStatus(`✅ ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화: ${syncResult.error})`, "warning");
+                }
+            } catch (syncError) {
+                console.error('[Auth] 로그인 후 동기화 오류:', syncError);
+                showStatus(`✅ ${currentUser.displayName || currentUser.email}님 환영합니다! (동기화 오류 발생)`, "warning");
+            }
+            
+            // 폼 초기화
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('loginPassword').value = '';
             
         } else {
             showStatus(`로그인 실패: ${result.error}`, "error");
@@ -4409,6 +4420,7 @@ window.showPreviousWord = showPreviousWord;
 window.showNextWord = showNextWord;
 window.speakVocabularyWord = speakVocabularyWord;
 // 🔧 추가: 인증 관련 전역 함수들
+window.handleLoginClick = handleLoginClick;
 window.toggleAuth = toggleAuth;
 window.toggleApiKeys = toggleApiKeys;
 window.handleLogin = handleLogin;
