@@ -1464,6 +1464,141 @@
 const API_URL = 'https://knstranslator.netlify.app/.netlify/functions/translate';
 const AUTH_API_URL = 'https://knstranslator.netlify.app/.netlify/functions/auth'; // 🔧 추가: 인증 API URL
 
+// 📊 대시보드 업데이트 (개선된 버전)
+async function updateDashboard() {
+    console.log('[Dashboard] 업데이트 시작...');
+    
+    // 게스트 모드 처리
+    if (!currentUser || !authToken) {
+        console.log('[Dashboard] 게스트 모드 - 기본값 표시');
+        
+        // 모든 통계를 기본값으로
+        document.getElementById('dailyTranslations')?.textContent = '0';
+        document.getElementById('dailyCost')?.textContent = '$0.00';
+        document.getElementById('monthlyTranslations')?.textContent = '0';
+        document.getElementById('monthlyCost')?.textContent = '$0.00';
+        document.getElementById('vocabularyTotal')?.textContent = '0';
+        document.getElementById('vocabularyStudied')?.textContent = '0';
+        
+        // API 키 상태
+        const openaiStatus = document.getElementById('openaiKeyStatus');
+        const googleStatus = document.getElementById('googleKeyStatus');
+        if (openaiStatus) {
+            openaiStatus.textContent = '미설정';
+            openaiStatus.className = 'key-status';
+        }
+        if (googleStatus) {
+            googleStatus.textContent = '미설정';
+            googleStatus.className = 'key-status';
+        }
+        
+        // 동기화 상태
+        const syncStatus = document.querySelector('.sync-status');
+        if (syncStatus) {
+            syncStatus.textContent = '로그인 필요';
+            syncStatus.className = 'sync-status warning';
+        }
+        
+        return;
+    }
+
+    try {
+        console.log('[Dashboard] 서버에서 데이터 요청 중...');
+        
+        const response = await fetch(AUTH_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                action: 'get-dashboard-data'
+            })
+        });
+
+        console.log('[Dashboard] 서버 응답:', response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[Dashboard] 서버 오류:', errorText);
+            throw new Error(`서버 응답 오류: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('[Dashboard] 받은 데이터:', result);
+        
+        if (result.success && result.data) {
+            const data = result.data;
+            
+            // 📊 사용량 통계 업데이트
+            const dailyTransEl = document.getElementById('dailyTranslations');
+            const dailyCostEl = document.getElementById('dailyCost');
+            const monthlyTransEl = document.getElementById('monthlyTranslations');
+            const monthlyCostEl = document.getElementById('monthlyCost');
+            
+            if (dailyTransEl) dailyTransEl.textContent = data.usage?.daily?.translations || '0';
+            if (dailyCostEl) dailyCostEl.textContent = `$${data.usage?.daily?.cost || '0.00'}`;
+            if (monthlyTransEl) monthlyTransEl.textContent = data.usage?.monthly?.translations || '0';
+            if (monthlyCostEl) monthlyCostEl.textContent = `$${data.usage?.monthly?.cost || '0.00'}`;
+            
+            // 🔑 API 키 상태 업데이트
+            const openaiStatusEl = document.getElementById('openaiKeyStatus');
+            const googleStatusEl = document.getElementById('googleKeyStatus');
+            
+            if (openaiStatusEl) {
+                const hasOpenAI = data.apiKeys?.openai || false;
+                openaiStatusEl.textContent = hasOpenAI ? '✓ 설정됨' : '미설정';
+                openaiStatusEl.className = hasOpenAI ? 'key-status active' : 'key-status';
+            }
+            
+            if (googleStatusEl) {
+                const hasGoogle = data.apiKeys?.google || false;
+                googleStatusEl.textContent = hasGoogle ? '✓ 설정됨' : '미설정';
+                googleStatusEl.className = hasGoogle ? 'key-status active' : 'key-status';
+            }
+            
+            // 📚 단어장 통계 업데이트
+            const vocabTotalEl = document.getElementById('vocabularyTotal');
+            const vocabStudiedEl = document.getElementById('vocabularyStudied');
+            
+            if (vocabTotalEl) vocabTotalEl.textContent = data.vocabulary?.total || '0';
+            if (vocabStudiedEl) vocabStudiedEl.textContent = data.vocabulary?.studied || '0';
+            
+            // ✅ 동기화 상태
+            const syncStatus = document.querySelector('.sync-status');
+            if (syncStatus) {
+                syncStatus.textContent = '✓ 동기화 완료';
+                syncStatus.className = 'sync-status success';
+            }
+            
+            console.log('[Dashboard] 업데이트 완료!');
+            
+        } else {
+            throw new Error(result.error || '데이터 형식 오류');
+        }
+        
+    } catch (error) {
+        console.error('[Dashboard] 업데이트 실패:', error);
+        
+        // 오류 시 로컬 데이터만 표시
+        const vocabTotal = vocabularyManager?.vocabulary?.size || 0;
+        const vocabStudied = Array.from(vocabularyManager?.vocabulary?.values() || [])
+            .filter(w => (w.correctCount || 0) > 0 || (w.wrongCount || 0) > 0).length;
+        
+        document.getElementById('vocabularyTotal')?.textContent = vocabTotal;
+        document.getElementById('vocabularyStudied')?.textContent = vocabStudied;
+        
+        // 동기화 오류 표시
+        const syncStatus = document.querySelector('.sync-status');
+        if (syncStatus) {
+            syncStatus.textContent = '⚠ 동기화 오류';
+            syncStatus.className = 'sync-status error';
+        }
+        
+        // 오류지만 기본 기능은 작동하도록
+        showStatus('대시보드 동기화 오류가 발생했지만 기본 기능은 정상 작동합니다', 'warning');
+    }
+}
 // 🔐 사용자 인증 시스템
 let currentUser = null;
 let authToken = null;
@@ -4731,35 +4866,49 @@ async saveVocabulary() {
 },
     
     // 사용자 설정 서버 저장
-    async saveSettings() {
-        if (!this.isEnabled || !authToken) return;
+async saveSettings() {
+    if (!this.isEnabled || !authToken) {
+        console.log('[ServerSync] 설정 저장 건너뜀 - 동기화 비활성 또는 미인증');
+        return { success: false, error: '동기화 비활성' };
+    }
+    
+    try {
+        console.log('[ServerSync] 설정 저장 시작...');
         
-        try {
-            const settings = {
-                ttsEngine: els.ttsEngineMode?.value || 'auto',
-                voiceSelection: els.voiceSelect?.value || 'nova',
-                googleVoice: els.googleVoiceSelect?.value || 'vi-VN-Standard-A',
-                volume: parseFloat(els.volumeControl?.value || 0.8),
-                sourceLang: els.sourceLangSelect?.value || 'Korean',
-                targetLang: els.targetLangSelect?.value || 'Vietnamese',
-                theme: document.documentElement.getAttribute('data-theme') || 'light',
-                pronunciationEnabled: isPronunciationEnabled,
-                autoThreshold: parseInt(els.autoThreshold?.value || 50),
-                dailyBudget: parseFloat(document.getElementById('dailyBudget')?.value || 1.00),
-                monthlyBudget: parseFloat(document.getElementById('monthlyBudget')?.value || 30.00)
-            };
-            
-            const response = await fetch(AUTH_API_URL, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                },
-                body: JSON.stringify({
-                    action: 'save-settings',
-                    settings: settings
-                })
-            });
+        // DOM 요소 안전하게 가져오기
+        const settings = {
+            ttsEngine: els.ttsEngineMode?.value || 'auto',
+            voiceSelection: els.voiceSelect?.value || 'nova',
+            googleVoice: els.googleVoiceSelect?.value || 'vi-VN-Standard-A',
+            volume: parseFloat(els.volumeControl?.value || '0.8'),
+            sourceLang: els.sourceLangSelect?.value || 'Korean',
+            targetLang: els.targetLangSelect?.value || 'Vietnamese',
+            theme: document.documentElement.getAttribute('data-theme') || 'light',
+            pronunciationEnabled: typeof isPronunciationEnabled === 'boolean' ? isPronunciationEnabled : true,
+            autoThreshold: parseInt(els.autoThreshold?.value || '50'),
+            dailyBudget: parseFloat(document.getElementById('dailyBudget')?.value || '1.00'),
+            monthlyBudget: parseFloat(document.getElementById('monthlyBudget')?.value || '30.00')
+        };
+        
+        console.log('[ServerSync] 저장할 설정:', settings);
+        
+        const response = await fetch(AUTH_API_URL, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                action: 'save-settings',
+                settings: settings
+            })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[ServerSync] 설정 저장 실패 - 응답:', response.status, errorText);
+            throw new Error(`서버 응답 오류: ${response.status}`);
+        }
             
             const result = await response.json();
             if (result.success) {
