@@ -4785,16 +4785,16 @@ async loadDashboardData() {
         const result = await response.json();
         console.log('[ServerSync] 대시보드 데이터 로드 결과:', result);
         
-        if (result.success && result.dashboardData) {
+        if (result.success && result.Data) {
             // 대시보드 데이터 적용
-            this.applyData({ dashboardData: result.dashboardData });
+            this.applyData({ dashboardData: result.dData });
             
             // 대시보드 UI 업데이트
             if (typeof updateDashboardUI === 'function') {
-                updateDashboardUI(result.dashboardData);
+                updateDashboardUI(result.Data);
             }
             
-            return { success: true, data: result.dashboardData };
+            return { success: true, data: result.Data };
         }
         
         return { success: false, error: result.error || '대시보드 데이터 없음' };
@@ -5026,8 +5026,8 @@ async saveVocabulary() {
         'Authorization': `Bearer ${authToken}`
     },
     body: JSON.stringify({
-        action: 'sync-user-data',
-        includeDashboard: true  // 대시보드 데이터 포함 요청
+        action: 'save-vocabulary', // action 이름 변경
+         vocabularyData: vocabularyArray  // 단어장 데이터 추가
     })
 });
         
