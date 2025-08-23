@@ -1524,7 +1524,14 @@ async function initAuthSystem() {
         console.log('[Auth] 저장된 인증 정보 없음 - 게스트 모드');
         updateAuthUI(false);
     }
-    
+    // 🔧 대시보드 데이터 동기화
+console.log('[Auth] 대시보드 데이터 동기화 시작...');
+const dashboardResult = await serverSync.loadDashboardData();
+if (dashboardResult.success) {
+    console.log('[Auth] 대시보드 동기화 성공');
+} else {
+    console.warn('[Auth] 대시보드 동기화 실패:', dashboardResult.error);
+}
     // 🔧 추가: 인증 관련 이벤트 리스너 설정
     setupAuthEventListeners();
 }
@@ -2185,7 +2192,160 @@ function updateTranslationButtonStates() {
         }
     }
 }
-
+// 🔧 대시보드 UI 업데이트 함수
+function updateDashboardUI(dashboardData) {
+    console.log('[Dashboard] UI 업데이트 시작:', dashboardData);
+    
+    if (!dashboardData) return;
+    
+    // 1. 사용량 통계 업데이트
+    if (dashboardData.usage) {
+        // 일일 통계
+        if (dashboardData.usage.daily) {
+            const dailyStats = document.getElementById('dailyStats');
+            if (dailyStats) {
+                dailyStats.innerHTML = `
+                    <div class="stat-item">
+                        <span class="stat-label">오늘 번역</span>
+                        <span class="stat-value" data-type="daily-translations">${dashboardData.usage.daily.translations || 0}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">오늘 비용</span>
+                        <span class="stat-value" data-type="daily-cost">$${(dashboardData.usage.daily.cost || 0).toFixed(4)}</span>
+                    </div>
+                `;
+            }
+        }
+        // 🔧 로컬 대시보드 데이터 표시 (게스트 모드)
+function displayLocalDashboardData() {
+    console.log('[Dashboard] 로컬 데이터 표시');
+    
+    // 로컬 스토리지에서 데이터 가져오기
+    const localStats = JSON.parse(localStorage.getItem('usageStats') || '{}');
+    const translationHistory = JSON.parse(localStorage.getItem('translationHistory') || '[]');
+    const vocabularySize = vocabularyDict ? vocabularyDict.size : 0;
+    
+    // 오늘 날짜
+    const today = new Date().toISOString().split('T')[0];
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    
+    // 일일/월간 통계 계산
+    const todayStats = localStats[today] || { translations: 0, cost: 0 };
+    let monthlyTranslations = 0;
+    let monthlyCost = 0;
+    
+    for (const [date, stats] of Object.entries(localStats)) {
+        if (date.startsWith(currentMonth)) {
+            monthlyTranslations += stats.translations || 0;
+            monthlyCost += stats.cost || 0;
+        }
+    }
+    
+    // 대시보드 데이터 구성
+    const dashboardData = {
+        usage: {
+            daily: {
+                translations: todayStats.translations,
+                cost: todayStats.cost
+            },
+            monthly: {
+                translations: monthlyTranslations,
+                cost: monthlyCost
+            }
+        },
+        apiKeys: {
+            openai: false,  // 게스트는 항상 false
+            google: false
+        },
+        vocabulary: {
+            total: vocabularySize,
+            studied: 0  // 게스트는 학습 추적 안함
+        }
+    };
+    
+    // UI 업데이트
+    updateDashboardUI(dashboardData);
+    
+    // 게스트 모드 알림
+    const dashboardHeader = document.querySelector('.dashboard-header');
+    if (dashboardHeader && !dashboardHeader.querySelector('.guest-notice')) {
+        const notice = document.createElement('div');
+        notice.className = 'guest-notice';
+        notice.style.cssText = `
+            background: var(--warning-bg);
+            color: var(--warning-text);
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+        `;
+        notice.innerHTML = '⚠️ 게스트 모드 - 로컬 데이터만 표시됩니다. 로그인하시면 전체 통계를 볼 수 있습니다.';
+        dashboardHeader.appendChild(notice);
+    }
+}
+        // 월간 통계
+        if (dashboardData.usage.monthly) {
+            const monthlyStats = document.getElementById('monthlyStats');
+            if (monthlyStats) {
+                monthlyStats.innerHTML = `
+                    <div class="stat-item">
+                        <span class="stat-label">이번달 번역</span>
+                        <span class="stat-value" data-type="monthly-translations">${dashboardData.usage.monthly.translations || 0}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">이번달 비용</span>
+                        <span class="stat-value" data-type="monthly-cost">$${(dashboardData.usage.monthly.cost || 0).toFixed(2)}</span>
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    // 2. API 키 상태 업데이트
+    if (dashboardData.apiKeys) {
+        const apiKeysStatus = document.getElementById('apiKeysStatus');
+        if (apiKeysStatus) {
+            apiKeysStatus.innerHTML = `
+                <div class="api-status-item">
+                    <span class="api-name">OpenAI</span>
+                    <span class="api-status ${dashboardData.apiKeys.openai ? 'active' : 'inactive'}">
+                        ${dashboardData.apiKeys.openai ? '✅ 등록됨' : '⚠️ 미등록'}
+                    </span>
+                </div>
+                <div class="api-status-item">
+                    <span class="api-name">Google Cloud</span>
+                    <span class="api-status ${dashboardData.apiKeys.google ? 'active' : 'inactive'}">
+                        ${dashboardData.apiKeys.google ? '✅ 등록됨' : '⚠️ 미등록'}
+                    </span>
+                </div>
+            `;
+        }
+    }
+    
+    // 3. 단어장 통계 업데이트
+    if (dashboardData.vocabulary) {
+        const vocabStats = document.getElementById('vocabStats');
+        if (vocabStats) {
+            vocabStats.innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-label">전체 단어</span>
+                    <span class="vocab-stat-total">${dashboardData.vocabulary.total || 0}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">학습 완료</span>
+                    <span class="vocab-stat-studied">${dashboardData.vocabulary.studied || 0}</span>
+                </div>
+            `;
+        }
+    }
+    
+    // 4. 차트 업데이트 (월별 비용)
+    if (dashboardData.monthlyChart && typeof updateMonthlyChart === 'function') {
+        updateMonthlyChart(dashboardData.monthlyChart);
+    }
+    
+    console.log('[Dashboard] UI 업데이트 완료');
+}
 // 🔧 프리미엄 기능 접근 시 알림
 function showPremiumAlert(featureName) {
     if (currentUser) {
@@ -4133,6 +4293,15 @@ async function handleTranslate(){
         displayTranslation(cachedResult.translation, cachedResult.pronunciation_hangul, inputText, true);
         showStatus("📦 캐시에서 로드됨", "success");
         updateStats(true);
+        // 🔧 대시보드 실시간 업데이트 (캐시)
+if (document.getElementById('dashboardModal') && 
+    document.getElementById('dashboardModal').classList.contains('active')) {
+    if (currentUser && authToken) {
+        serverSync.loadDashboardData();
+    } else {
+        displayLocalDashboardData();
+    }
+}
         return;
     }
     
@@ -4199,7 +4368,26 @@ async function handleTranslate(){
         saveToHistory(inputText, result.translation, els.sourceLangSelect.value, targetLang);
         updateStats(false);
         showStatus(aiContextMode ? "🧠 AI 번역 완료" : "번역 완료", "success");
-        
+        // 🔧 대시보드 실시간 업데이트
+if (document.getElementById('dashboardModal') && 
+    document.getElementById('dashboardModal').classList.contains('active')) {
+    // 대시보드가 열려있으면 실시간 업데이트
+    console.log('[Dashboard] 번역 완료 - 대시보드 업데이트');
+    
+    if (currentUser && authToken) {
+        // 서버에서 최신 데이터 가져오기
+        setTimeout(() => {
+            serverSync.loadDashboardData().then(result => {
+                console.log('[Dashboard] 실시간 업데이트 완료:', result);
+            }).catch(error => {
+                console.error('[Dashboard] 실시간 업데이트 오류:', error);
+            });
+        }, 500); // 서버 데이터 반영 대기
+    } else {
+        // 게스트 모드 - 로컬 데이터 즉시 업데이트
+        displayLocalDashboardData();
+    }
+}
     } catch (error) {
         showStatus(`번역 실패: ${error.message}`, "error");
     }
@@ -4261,7 +4449,38 @@ async function handleSpeak(){if(!currentTranslation)return;window.budgetExceeded
 function handleVoiceTranslate(){recognition||setupSpeechRecognition(),isRecording?recognition.stop():(recognition.lang=langCodeMap[els.sourceLangSelect.value],recognition.start())}
 function displayTranslation(e,t,a,s){currentTranslation=e,currentSource=a,els.translation.textContent=e,els.pronunciationSection.style.display=isPronunciationEnabled?"block":"none",isPronunciationEnabled&&(els.pronunciationContent.textContent=t||""),els.speakBtn.disabled=!1,els.copyBtn.disabled=!1,els.cacheIndicator.style.display=s?"inline-block":"none"}
 function setupSpeechRecognition(){const e=window.SpeechRecognition||window.webkitSpeechRecognition;if(!e)return void showStatus("음성 인식 미지원 브라우저","error");recognition=new e,recognition.continuous=!1,recognition.interimResults=!0;let t="";recognition.onstart=()=>{isRecording=!0,t="",els.voiceBtn.classList.add("recording")},recognition.onresult=e=>{let a="";for(let s=e.resultIndex;s<e.results.length;++s)e.results[s].isFinal?t+=e.results[s][0].transcript:a+=e.results[s][0].transcript;conversationState.isActive||(els.inputText.value=t+a)},recognition.onend=()=>{isRecording=!1,els.voiceBtn.classList.remove("recording");const e=t.trim();conversationState.isActive?e?handleConversationTranslation(e):startAutoRecognition():e&&(els.inputText.value=e,handleTranslate())},recognition.onerror=e=>{showStatus(`음성 인식 오류: ${e.error}`,"error"),isRecording=!1,els.voiceBtn.classList.remove("recording")}}
-function toggleDashboard(){els.dashboardModal.classList.toggle("active"),els.dashboardModal.classList.contains("active")&&usageTracker.updateDisplay()}
+function toggleDashboard() {
+    const modal = document.getElementById('dashboardModal');
+    modal.classList.toggle('active');
+    
+    // 대시보드가 열릴 때만 동기화
+    if (modal.classList.contains('active')) {
+        console.log('[Dashboard] 대시보드 열림 - 데이터 동기화 시작');
+        
+        // 로그인 상태일 때만 서버 동기화
+        if (currentUser && authToken) {
+            // 로딩 표시
+            showStatus("📊 대시보드 데이터 로드 중...", "info");
+            
+            // 서버에서 최신 데이터 가져오기
+            serverSync.loadDashboardData().then(result => {
+                if (result.success) {
+                    showStatus("✅ 대시보드 동기화 완료", "success");
+                } else {
+                    console.warn('[Dashboard] 동기화 실패:', result.error);
+                    showStatus("⚠️ 대시보드 동기화 실패", "warning");
+                }
+            }).catch(error => {
+                console.error('[Dashboard] 동기화 오류:', error);
+                showStatus("❌ 대시보드 로드 오류", "error");
+            });
+        } else {
+            // 게스트 모드 - 로컬 데이터만 표시
+            console.log('[Dashboard] 게스트 모드 - 로컬 데이터 표시');
+            displayLocalDashboardData();
+        }
+    }
+}
 function toggleSettings(){els.settingsPanel.classList.toggle("active")}
 function toggleTheme(){const e="dark"===document.documentElement.getAttribute("data-theme")?"light":"dark";document.documentElement.setAttribute("data-theme",e),localStorage.setItem("theme",e)}
 function swapLanguages(){const e=els.sourceLangSelect.value;els.sourceLangSelect.value=els.targetLangSelect.value,els.targetLangSelect.value=e,saveSettings()}
@@ -4538,7 +4757,53 @@ async loadFromServer() {
         return { success: false, error: error.message };
     }
 },
+  // 대시보드 데이터만 별도로 가져오기
+async loadDashboardData() {
+    if (!this.isEnabled || !authToken) {
+        console.log('[ServerSync] 대시보드 동기화 비활성화 상태');
+        return { success: false, error: '로그인 필요' };
+    }
     
+    try {
+        console.log('[ServerSync] 대시보드 데이터 로드 시작...');
+        
+        const response = await fetch(AUTH_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                action: 'get-dashboard-data'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`서버 응답 오류: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('[ServerSync] 대시보드 데이터 로드 결과:', result);
+        
+        if (result.success && result.dashboardData) {
+            // 대시보드 데이터 적용
+            this.applyData({ dashboardData: result.dashboardData });
+            
+            // 대시보드 UI 업데이트
+            if (typeof updateDashboardUI === 'function') {
+                updateDashboardUI(result.dashboardData);
+            }
+            
+            return { success: true, data: result.dashboardData };
+        }
+        
+        return { success: false, error: result.error || '대시보드 데이터 없음' };
+        
+    } catch (error) {
+        console.error('[ServerSync] 대시보드 데이터 로드 오류:', error);
+        return { success: false, error: error.message };
+    }
+},  
     // 서버 데이터를 로컬에 적용 (개선된 버전)
 async applyServerData(userData) {
     try {
@@ -4604,6 +4869,68 @@ async applyServerData(userData) {
         
         console.log('[ServerSync] 모든 데이터 적용 완료');
         
+        // 5. 대시보드 데이터 업데이트
+if (userData.dashboardData) {
+    console.log('[ServerSync] 대시보드 데이터 적용 시작');
+    
+    // 사용량 데이터 업데이트
+    if (userData.dashboardData.usage) {
+        const usage = userData.dashboardData.usage;
+        
+        // 일일 사용량
+        if (usage.daily) {
+            const dailyTranslations = document.querySelector('.stat-value[data-type="daily-translations"]');
+            const dailyCost = document.querySelector('.stat-value[data-type="daily-cost"]');
+            
+            if (dailyTranslations) {
+                dailyTranslations.textContent = usage.daily.translations || 0;
+            }
+            if (dailyCost) {
+                dailyCost.textContent = `$${(usage.daily.cost || 0).toFixed(4)}`;
+            }
+        }
+        
+        // 월간 사용량
+        if (usage.monthly) {
+            const monthlyTranslations = document.querySelector('.stat-value[data-type="monthly-translations"]');
+            const monthlyCost = document.querySelector('.stat-value[data-type="monthly-cost"]');
+            
+            if (monthlyTranslations) {
+                monthlyTranslations.textContent = usage.monthly.translations || 0;
+            }
+            if (monthlyCost) {
+                monthlyCost.textContent = `$${(usage.monthly.cost || 0).toFixed(2)}`;
+            }
+        }
+    }
+    
+    // API 키 상태 업데이트
+    if (userData.dashboardData.apiKeys) {
+        updateApiKeyStatus('openai', 
+            userData.dashboardData.apiKeys.openai ? 'success' : 'warning',
+            userData.dashboardData.apiKeys.openai ? '✅ 등록됨' : '⚠️ 미등록'
+        );
+        updateApiKeyStatus('google',
+            userData.dashboardData.apiKeys.google ? 'success' : 'warning', 
+            userData.dashboardData.apiKeys.google ? '✅ 등록됨' : '⚠️ 미등록'
+        );
+    }
+    
+    // 단어장 통계 업데이트 (대시보드용)
+    if (userData.dashboardData.vocabulary) {
+        const vocabTotal = document.querySelector('.vocab-stat-total');
+        const vocabStudied = document.querySelector('.vocab-stat-studied');
+        
+        if (vocabTotal) {
+            vocabTotal.textContent = userData.dashboardData.vocabulary.total || 0;
+        }
+        if (vocabStudied) {
+            vocabStudied.textContent = userData.dashboardData.vocabulary.studied || 0;
+        }
+    }
+    
+    console.log('[ServerSync] 대시보드 데이터 적용 완료');
+}
     } catch (error) {
         console.error('[ServerSync] 데이터 적용 오류:', error);
         showStatus("동기화 중 오류가 발생했습니다", "error");
@@ -4693,16 +5020,16 @@ async saveVocabulary() {
         console.log('[ServerSync] 전송할 단어장 데이터:', vocabularyArray);
         
         const response = await fetch(AUTH_API_URL, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
-            },
-            body: JSON.stringify({
-                action: 'save-vocabulary',
-                vocabularyData: vocabularyArray // Map을 배열로 변환해서 전송
-            })
-        });
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+    },
+    body: JSON.stringify({
+        action: 'sync-user-data',
+        includeDashboard: true  // 대시보드 데이터 포함 요청
+    })
+});
         
         console.log('[ServerSync] 단어장 저장 응답 상태:', response.status);
         
