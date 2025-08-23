@@ -982,7 +982,83 @@
                 margin-bottom: 5px;
             }
         }
-        
+        .dashboard-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: var(--surface, #f5f5f5);
+    border-radius: 8px;
+}
+
+.dashboard-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 10px;
+    background: var(--background, white);
+    border-radius: 6px;
+}
+
+.stat-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+.api-status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.api-status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--background, white);
+    border-radius: 6px;
+}
+
+.api-status {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.api-status.active {
+    color: var(--success, #4CAF50);
+}
+
+.api-status.inactive {
+    color: var(--warning, #FF9800);
+}
+
+.guest-notice {
+    background: #FFF3E0;
+    color: #E65100;
+    padding: 10px;
+    border-radius: 6px;
+    margin: 10px 0;
+    font-size: 13px;
+    text-align: center;
+}
     </style>
 </head>
 <body>
@@ -1198,69 +1274,77 @@
     
 
     <!-- 🔧 수정: 대시보드 모달에 월 비용 카드 추가 -->
-    <div class="modal" id="dashboardModal">
-        <div class="modal-content-wrapper">
-            <div class="modal-header">
-                <span class="modal-title">📊 대시보드</span>
-                <button class="modal-close" onclick="toggleDashboard()">×</button>
-            </div>
-            <div class="usage-cards">
-                <div class="usage-card">
-                    <div class="usage-card-value" id="todayUsage">0</div>
-                    <div class="usage-card-label">오늘 번역</div>
+<div class="modal" id="dashboardModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📊 사용량 대시보드</h2>
+            <button class="modal-close" onclick="toggleDashboard()">×</button>
+        </div>
+        <div class="dashboard-header">
+            <!-- 게스트 알림이 여기 추가됨 -->
+        </div>
+        
+        <!-- 일일 통계 -->
+        <div class="dashboard-section">
+            <h3>📅 오늘 사용량</h3>
+            <div id="dailyStats" class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">오늘 번역</span>
+                    <span class="stat-value" data-type="daily-translations">0</span>
                 </div>
-                <div class="usage-card">
-                    <div class="usage-card-value" id="monthUsage">0</div>
-                    <div class="usage-card-label">이번 달</div>
-                </div>
-                <div class="usage-card">
-                    <div class="usage-card-value" id="todayCost">$0.00</div>
-                    <div class="usage-card-label">오늘 비용</div>
-                </div>
-                <!-- ➕ 새로 추가: 해당 월 비용 카드 -->
-                <div class="usage-card">
-                    <div class="usage-card-value" id="monthCost">$0.00</div>
-                    <div class="usage-card-label">이번 달 비용</div>
-                </div>
-                <div class="usage-card">
-                    <div class="usage-card-value" id="savedCost">$0.00</div>
-                    <div class="usage-card-label">절감 비용</div>
+                <div class="stat-item">
+                    <span class="stat-label">오늘 비용</span>
+                    <span class="stat-value" data-type="daily-cost">$0.0000</span>
                 </div>
             </div>
-            <div class="chart-container">
-                <div class="chart-title">📈 7일 사용량</div>
-                <div class="simple-bar-chart" id="weeklyChart"></div>
+        </div>
+        
+        <!-- 월간 통계 -->
+        <div class="dashboard-section">
+            <h3>📈 이번달 사용량</h3>
+            <div id="monthlyStats" class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">이번달 번역</span>
+                    <span class="stat-value" data-type="monthly-translations">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">이번달 비용</span>
+                    <span class="stat-value" data-type="monthly-cost">$0.00</span>
+                </div>
             </div>
-            <!-- ➕ 새로 추가: 월별 비용 차트 -->
-            <div class="chart-container">
-                <div class="chart-title">💰 월별 비용 추이 (최근 6개월)</div>
-                <div class="simple-bar-chart" id="monthlyChart"></div>
+        </div>
+        
+        <!-- API 키 상태 -->
+        <div class="dashboard-section">
+            <h3>🔑 API 키 상태</h3>
+            <div id="apiKeysStatus" class="api-status-grid">
+                <div class="api-status-item">
+                    <span class="api-name">OpenAI</span>
+                    <span class="api-status inactive">⚠️ 미등록</span>
+                </div>
+                <div class="api-status-item">
+                    <span class="api-name">Google Cloud</span>
+                    <span class="api-status inactive">⚠️ 미등록</span>
+                </div>
             </div>
-            <div class="limit-settings">
-                <div class="limit-title">⚠️ API 한도 관리</div>
-                <div class="limit-item">
-                    <span class="limit-label">일일 예산 ($)</span>
-                    <input type="number" class="limit-input" id="dailyBudget" value="1.00" step="0.10">
+        </div>
+        
+        <!-- 단어장 통계 -->
+        <div class="dashboard-section">
+            <h3>📚 단어장 통계</h3>
+            <div id="vocabStats" class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">전체 단어</span>
+                    <span class="vocab-stat-total">0</span>
                 </div>
-                <div class="limit-item">
-                    <span class="limit-label">월간 예산 ($)</span>
-                    <input type="number" class="limit-input" id="monthlyBudget" value="30.00" step="1.00">
-                </div>
-                <div class="limit-progress">
-                    <div class="limit-progress-bar" id="budgetProgress"></div>
-                </div>
-                <div class="limit-percentage" id="budgetPercentage">0% 사용</div>
-                <div class="limit-item" style="margin-top: 15px;">
-                    <span class="limit-label">한도 도달 시</span>
-                    <select id="limitAction" style="width: 150px; padding: 5px; border-radius: 5px; font-size: 12px;">
-                        <option value="switch">Google로 전환</option>
-                        <option value="warn">경고만</option>
-                        <option value="block">차단</option>
-                    </select>
+                <div class="stat-item">
+                    <span class="stat-label">학습 완료</span>
+                    <span class="vocab-stat-studied">0</span>
                 </div>
             </div>
         </div>
     </div>
+</div>
     
     <div class="modal" id="historyModal"><div class="modal-content-wrapper"><div class="modal-header"><span class="modal-title">📜 번역 기록</span><button class="modal-close" onclick="hideHistory()">×</button></div><div id="historyList" style="max-height: 400px; overflow-y: auto;"></div><button onclick="clearHistory()" style="width: 100%; margin-top: 15px; background: var(--error); color: white; border: none; border-radius: 5px; padding: 8px;">기록 모두 삭제</button></div></div>
     
@@ -4785,9 +4869,19 @@ async loadDashboardData() {
         const result = await response.json();
         console.log('[ServerSync] 대시보드 데이터 로드 결과:', result);
         
-        if (result.success && result.dashboardData) {
-            // 대시보드 데이터 적용
-            this.applyData({ dashboardData: result.dashboardData });
+       if (result.success && result.data) {  // dashboardData → data로 변경
+    // 대시보드 데이터 적용
+    this.applyData({ dashboardData: result.data });  // result.data를 dashboardData로 래핑
+    
+    // 대시보드 UI 업데이트
+    if (typeof updateDashboardUI === 'function') {
+        updateDashboardUI(result.data);  // result.data 전달
+    }
+    
+    return { success: true, data: result.data };
+}
+
+return { success: false, error: result.error || '대시보드 데이터 없음' };
             
             // 대시보드 UI 업데이트
             if (typeof updateDashboardUI === 'function') {
