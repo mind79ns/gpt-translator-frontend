@@ -1658,6 +1658,58 @@ function updateUsageUI(usageData) {
         updateWeeklyChart(usageData.weekly);
     }
 }
+// 🔧 대시보드 UI 전체 업데이트 함수 (신규 추가)
+function updateDashboardUI(dashboardData) {
+    if (!dashboardData) {
+        console.error('[Dashboard] UI 업데이트를 위한 데이터가 없습니다.');
+        return;
+    }
+
+    console.log('[Dashboard] UI 업데이트 시작:', dashboardData);
+
+    const usage = dashboardData.usage || {};
+    const daily = usage.daily || {};
+    const monthly = usage.monthly || {};
+    const weekly = usage.weekly || []; // weekly 데이터 추가
+    const monthlyChartData = dashboardData.monthlyChart || []; // 월별 차트 데이터 추가
+
+    // 대시보드 카드 업데이트
+    document.getElementById('todayUsage').textContent = daily.translations || 0;
+    document.getElementById('monthUsage').textContent = monthly.translations || 0;
+    document.getElementById('todayCost').textContent = `$${(daily.cost || 0).toFixed(4)}`;
+    document.getElementById('monthCost').textContent = `$${(monthly.cost || 0).toFixed(4)}`;
+    
+    // 🔧 '절감 비용' ID가 savedCost이므로 수정
+    const savedCostEl = document.getElementById('savedCost');
+    if (savedCostEl) {
+        // '절감 비용'은 월간 기준으로 집계하는 것이 더 의미 있으므로 monthly.saved를 사용
+        savedCostEl.textContent = `$${(monthly.saved || 0).toFixed(4)}`;
+    }
+
+    // 주간 사용량 차트 업데이트
+    if (typeof updateWeeklyChart === 'function') {
+        updateWeeklyChart(weekly);
+    }
+    
+    // 월별 비용 차트 업데이트
+    if (typeof updateMonthlyChart === 'function') {
+        updateMonthlyChart(monthlyChartData);
+    }
+
+    // 예산 진행률 업데이트
+    if (typeof usageTracker !== 'undefined' && typeof usageTracker.updateBudgetProgress === 'function') {
+        // usageTracker가 로컬 캐시를 기반으로 진행률을 업데이트하도록 유도
+        usageTracker.localCache.daily[new Date().toISOString().split('T')[0]] = daily;
+        usageTracker.updateBudgetProgress();
+    }
+    
+    // 메인 화면 통계 업데이트
+    const todayTranslationsEl = document.getElementById('todayTranslations');
+    if (todayTranslationsEl) {
+        todayTranslationsEl.textContent = daily.translations || 0;
+    }
+}
+// [끝점]
 
 // 🔐 주간 차트 업데이트
 function updateWeeklyChart(weeklyData) {
@@ -4785,17 +4837,12 @@ async loadDashboardData() {
         const result = await response.json();
         console.log('[ServerSync] 대시보드 데이터 로드 결과:', result);
         
-        if (result.success && result.Data) {
-            // 대시보드 데이터 적용
-            this.applyData({ dashboardData: result.dData });
-            
-            // 대시보드 UI 업데이트
-            if (typeof updateDashboardUI === 'function') {
-                updateDashboardUI(result.Data);
-            }
-            
-            return { success: true, data: result.Data };
-        }
+       if (result.success && result.data) {
+    // 💡 방금 추가한 updateDashboardUI 함수를 직접 호출합니다.
+    updateDashboardUI(result.data);
+    
+    return { success: true, data: result.data };
+}
         
         return { success: false, error: result.error || '대시보드 데이터 없음' };
         
