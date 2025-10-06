@@ -1940,6 +1940,7 @@ button:hover {
     border-radius: 8px;
     border-left: 4px solid var(--primary);
     margin-top: 15px;
+    display: none; /* UI 오류 수정: 하단 불필요한 정보 숨김 */
 }
 
 .auth-info small {
