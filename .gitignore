@@ -1,0 +1,13 @@
+# 백업 파일 (GitHub에 올리지 않음)
+*.backup
+*.broken-modular
+*.pre-modular-backup
+
+# 미사용/실패한 모듈 보관
+js/_archived/
+
+# 개발 임시 파일
+.claude/
+
+# 한글 파일명 (선택적)
+번역기웹*.txt
