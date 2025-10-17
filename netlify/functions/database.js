@@ -126,6 +126,9 @@ async function authenticateUser(email, password) {
     }
 
     console.log('[Auth] 로그인 시도:', email);
+    console.log('[Auth] Supabase 연결 상태:', !!supabase);
+    console.log('[Auth] Supabase URL:', process.env.SUPABASE_URL ? '설정됨' : '없음');
+    console.log('[Auth] Supabase Service Key:', process.env.SUPABASE_SERVICE_KEY ? '설정됨' : '없음');
 
     // Supabase Auth를 사용하여 인증
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -134,7 +137,12 @@ async function authenticateUser(email, password) {
     });
 
     if (error) {
-      console.log('[Auth] Supabase Auth 인증 실패:', error.message);
+      console.error('[Auth] Supabase Auth 인증 실패 - 상세:', {
+        email: email,
+        errorMessage: error.message,
+        errorStatus: error.status,
+        errorName: error.name
+      });
       return {
         success: false,
         error: '이메일 또는 비밀번호가 올바르지 않습니다.'
