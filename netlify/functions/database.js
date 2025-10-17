@@ -50,71 +50,111 @@ function decryptApiKey(encryptedKey) {
   }
 }
 
-// 사용자 관련 함수들
+// 사용자 관련 함수들 (Supabase Auth 사용)
 async function createUser(email, password, displayName = null) {
   try {
-    const hashedPassword = await bcrypt.hash(password, 12);
-    
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .insert([
-        {
-          email: email.toLowerCase(),
-          password_hash: hashedPassword,
-          display_name: displayName
+    if (!supabase) {
+      return { success: false, error: '데이터베이스 연결 실패' };
+    }
+
+    console.log('[Auth] 회원가입 시도:', email);
+
+    // Supabase Auth를 사용하여 사용자 생성
+    const { data, error } = await supabase.auth.signUp({
+      email: email.toLowerCase().trim(),
+      password: password,
+      options: {
+        data: {
+          display_name: displayName || email.split('@')[0],
+          is_premium: false
         }
-      ])
-      .select()
-      .single();
+      }
+    });
 
-    if (userError) throw userError;
+    if (error) {
+      console.error('[Auth] Supabase Auth 회원가입 실패:', error);
+      return { success: false, error: error.message };
+    }
 
-    // 사용자 데이터 초기화
-    const { error: dataError } = await supabase
-      .from('user_data')
-      .insert([{ user_id: user.id }]);
+    if (!data.user) {
+      return { success: false, error: '사용자 생성에 실패했습니다.' };
+    }
 
-    if (dataError) console.error('사용자 데이터 초기화 실패:', dataError);
+    console.log('[Auth] 회원가입 성공:', email);
 
-    return { success: true, user };
+    // 사용자 설정 초기화 (user_settings 테이블)
+    const { error: settingsError } = await supabase
+      .from('user_settings')
+      .insert([{
+        user_id: data.user.id,
+        tts_engine: 'auto',
+        voice_selection: 'nova',
+        google_voice: 'vi-VN-Standard-A',
+        volume: 0.8,
+        source_lang: 'Korean',
+        target_lang: 'Vietnamese',
+        theme: 'light',
+        pronunciation_enabled: true,
+        auto_threshold: 50,
+        daily_budget: 1.00,
+        monthly_budget: 30.00
+      }]);
+
+    if (settingsError) {
+      console.error('[Auth] 사용자 설정 초기화 실패:', settingsError);
+    }
+
+    return {
+      success: true,
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        displayName: displayName || email.split('@')[0]
+      }
+    };
   } catch (error) {
-    console.error('사용자 생성 실패:', error);
+    console.error('[Auth] 사용자 생성 실패:', error);
     return { success: false, error: error.message };
   }
 }
 
-// database.js
-
-// 🔐 사용자 인증 (users 테이블 사용)
+// 🔐 사용자 인증 (Supabase Auth 사용)
 async function authenticateUser(email, password) {
   try {
     if (!supabase) {
       return { success: false, error: '데이터베이스 연결 실패' };
     }
 
-    // users 테이블에서 사용자 조회
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email.toLowerCase().trim())
-      .single();
+    console.log('[Auth] 로그인 시도:', email);
 
-    if (error || !user) {
-      console.log('[Auth] 사용자를 찾을 수 없음:', email);
-      return { success: false, error: '이메일 또는 비밀번호가 올바르지 않습니다.' };
+    // Supabase Auth를 사용하여 인증
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase().trim(),
+      password: password,
+    });
+
+    if (error) {
+      console.log('[Auth] Supabase Auth 인증 실패:', error.message);
+      return {
+        success: false,
+        error: '이메일 또는 비밀번호가 올바르지 않습니다.'
+      };
     }
 
-    // bcrypt로 비밀번호 비교
-    const isValid = await bcrypt.compare(password, user.password_hash);
-
-    if (!isValid) {
-      console.log('[Auth] 비밀번호 불일치:', email);
-      return { success: false, error: '이메일 또는 비밀번호가 올바르지 않습니다.' };
+    if (!data.user) {
+      console.log('[Auth] 사용자 데이터 없음');
+      return {
+        success: false,
+        error: '인증에 실패했습니다.'
+      };
     }
 
-    // JWT 토큰 생성
+    // JWT 토큰 생성 (앱 자체 토큰)
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      {
+        userId: data.user.id,
+        email: data.user.email
+      },
       process.env.JWT_SECRET || 'default-jwt-secret',
       { expiresIn: '7d' }
     );
@@ -124,17 +164,20 @@ async function authenticateUser(email, password) {
     return {
       success: true,
       user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.display_name || user.email,
-        isPremium: user.is_premium || false
+        id: data.user.id,
+        email: data.user.email,
+        displayName: data.user.user_metadata?.display_name || data.user.email,
+        isPremium: data.user.user_metadata?.is_premium || false
       },
       token
     };
 
   } catch (error) {
     console.error('[Auth] 사용자 인증 오류:', error);
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error.message || '인증 중 오류가 발생했습니다.'
+    };
   }
 }
 
