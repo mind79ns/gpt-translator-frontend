@@ -11,3 +11,6 @@ js/_archived/
 
 # 한글 파일명 (선택적)
 번역기웹*.txt
+
+# Local Netlify folder
+.netlify
