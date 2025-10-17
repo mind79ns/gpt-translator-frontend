@@ -417,22 +417,6 @@
             </div>
         </div>
 
-        <div class="auth-form" id="forgotForm">
-            <div class="auth-form-title">비밀번호 재설정</div>
-            <div class="auth-input-group">
-                <input type="email" id="forgotEmail" placeholder="가입한 이메일 주소" required>
-            </div>
-            <button class="auth-btn primary" onclick="handleForgotPassword()">📧 재설정 링크 보내기</button>
-            <div class="auth-links">
-                <a href="#" onclick="event.preventDefault(); switchAuthTab('login');">← 로그인으로 돌아가기</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-    <div class="auth-info">
-        </div>
-</div>
                 <div class="auth-info">
                     <small>• 개인 API 키 등록으로 무제한 번역</small>
                     <small>• 사용량 추적 및 분석</small>
@@ -3806,7 +3790,7 @@ if (modalId === 'practiceModal') {
 
     // ========== 1. Service Worker 등록 (오프라인 지원) ==========
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/js/service-worker.js')
+        navigator.serviceWorker.register('./js/service-worker.js')
             .then(reg => console.log('[✓] Service Worker 등록 성공'))
             .catch(err => console.warn('[!] Service Worker 등록 실패:', err));
     }
