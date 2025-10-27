@@ -533,6 +533,63 @@ button:hover {
     margin-top: 5px;
 }
 
+/* 품질 설정 래퍼 - grid 레이아웃 무시 */
+.quality-setting-wrapper {
+    display: block !important;
+    grid-template-columns: unset !important;
+}
+
+.quality-setting-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 15px;
+}
+
+/* 옵션 1: 실시간 모델 정보 표시 */
+.model-info-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 11px;
+}
+
+.model-info-display span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.model-name {
+    color: var(--ai-purple);
+    font-weight: 600;
+}
+
+.model-cost {
+    color: var(--text-secondary);
+}
+
+.model-tokens {
+    color: var(--text-secondary);
+}
+
+/* 옵션 3: 번역 결과에 모델 정보 표시 */
+.translation-model-info {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    background: var(--ai-purple);
+    color: white;
+    font-weight: normal;
+}
+
 .style-buttons {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -1546,12 +1603,10 @@ button:hover {
 }
 
 .input-actions {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
     display: flex;
     gap: 4px;
-    z-index: 10;
+    justify-content: flex-end;
+    margin-bottom: 8px;
 }
 
 .input-action-btn {
@@ -1562,14 +1617,19 @@ button:hover {
     padding: 4px 8px;
     cursor: pointer;
     font-size: 11px;
+    transition: all 0.2s;
+}
+
+.input-action-btn:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
 }
 
 .normal-mode textarea {
     width: 100%;
     min-height: 120px;
     padding: 15px;
-    padding-bottom: 40px;
-    padding-right: 15px;
     border: 2px solid var(--border);
     border-radius: 12px;
     font-size: 16px;

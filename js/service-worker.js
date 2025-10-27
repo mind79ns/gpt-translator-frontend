@@ -10,7 +10,9 @@ const STATIC_ASSETS = [
     '/css/styles.css',
     '/js/storage.js',
     '/js/api.js',
-    '/js/ui-optimizer.js'
+    '/js/auth.js',
+    '/js/ui-optimizer.js',
+    '/js/app.js'
 ];
 
 // API 캐시 전략: Network First (최신 데이터 우선)
