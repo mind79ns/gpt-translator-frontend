@@ -50,6 +50,23 @@
                 <div class="ai-settings-section" id="aiSettingsSection">
                     <div class="ai-settings-title">🧠 AI 문맥 번역 고도화</div>
 
+                    <!-- 🤖 AI 모델 선택 (하이브리드 모드) -->
+                    <div class="setting-item">
+                        <label class="setting-label">🤖 AI 모델 선택<small>자동: 텍스트 길이에 따라 최적 모델 선택</small></label>
+                        <div class="setting-control">
+                            <select id="aiModelSelect" onchange="updateAIModelSelection()">
+                                <option value="auto">🔄 자동 최적화 (추천)</option>
+                                <option value="gpt-4.1">🟢 GPT-4.1 (고품질)</option>
+                                <option value="gpt-4.1-mini">🟢 GPT-4.1 Mini (빠름)</option>
+                                <option value="gemini-2.0-flash">🔵 Gemini 2.0 Flash (빠름/저렴)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="model-indicator" id="modelIndicator"
+                        style="font-size: 11px; color: var(--text-secondary); padding: 5px 0; text-align: center;">
+                        현재 모드: <strong>자동 최적화</strong> - 텍스트 길이에 따라 최적 모델 선택
+                    </div>
+
                     <div class="setting-item quality-setting-wrapper">
                         <div class="quality-setting-grid">
                             <label class="setting-label">번역 품질 vs 속도<small>높을수록 정확하지만 느림</small></label>
@@ -3232,7 +3249,8 @@
                         getPronunciation: isPronunciationEnabled,
                         useAIContext: true,
                         contextualPrompt: contextualPrompt,
-                        qualityLevel: qualityLevel
+                        qualityLevel: qualityLevel,
+                        model: getOptimalModel(inputText) // 🤖 AI 모델 선택
                     };
                 } else {
                     // 일반 번역 요청
@@ -3240,7 +3258,8 @@
                         action: "translate",
                         inputText: inputText,
                         targetLang: targetLang,
-                        getPronunciation: isPronunciationEnabled
+                        getPronunciation: isPronunciationEnabled,
+                        model: getOptimalModel(inputText) // 🤖 AI 모델 선택
                     };
                 }
 
@@ -3335,22 +3354,66 @@
 
         // 기존 함수들 (기본 번역기 기능)
 
+        // 🤖 AI 모델 선택 상태 변수
+        let selectedAIModel = localStorage.getItem('selectedAIModel') || 'auto';
+
+        // 🤖 AI 모델 선택 업데이트 함수
+        function updateAIModelSelection() {
+            const select = document.getElementById('aiModelSelect');
+            if (!select) return;
+
+            selectedAIModel = select.value;
+            localStorage.setItem('selectedAIModel', selectedAIModel);
+
+            const indicator = document.getElementById('modelIndicator');
+            const modelDescriptions = {
+                'auto': '🔄 <strong>자동 최적화</strong> - 텍스트 길이에 따라 최적 모델 선택',
+                'gpt-4.1': '🟢 <strong>GPT-4.1</strong> - 최고 품질의 번역 (비용 높음)',
+                'gpt-4.1-mini': '🟢 <strong>GPT-4.1 Mini</strong> - 빠른 번역 속도 (품질 양호)',
+                'gemini-2.0-flash': '🔵 <strong>Gemini 2.0 Flash</strong> - 매우 빠름, 비용 저렴'
+            };
+
+            if (indicator) {
+                indicator.innerHTML = `현재 모드: ${modelDescriptions[selectedAIModel] || modelDescriptions['auto']}`;
+            }
+
+            console.log('[AI Model] 선택된 모델:', selectedAIModel);
+        }
+
+        // 🤖 텍스트 길이에 따른 자동 모델 선택 (하이브리드 모드)
+        function getOptimalModel(text) {
+            if (selectedAIModel !== 'auto') {
+                return selectedAIModel;
+            }
+
+            const charCount = text.length;
+            // 자동 모드: 짧은 텍스트 → Gemini (빠름), 긴 텍스트 → GPT (정확)
+            if (charCount < 100) {
+                return 'gemini-2.0-flash';
+            } else if (charCount < 500) {
+                return 'gpt-4.1-mini';
+            } else {
+                return 'gpt-4.1';
+            }
+        }
+
         // 옵션 1: 품질 슬라이더의 모델 정보를 실시간으로 업데이트하는 함수
         function updateModelInfo(level) {
             const modelConfig = {
-                1: { model: 'gpt-4.1-mini', cost: '매우 낮음', tokens: '1000' },
-                2: { model: 'gpt-4.1-mini', cost: '낮음', tokens: '1200' },
-                3: { model: 'gpt-4.1', cost: '중간', tokens: '1500' },
-                4: { model: 'gpt-4.1', cost: '높음', tokens: '2000' },
-                5: { model: 'gpt-4.1', cost: '매우 높음', tokens: '2500' }
+                1: { model: 'gemini-2.0-flash', cost: '매우 낮음', tokens: '1000', provider: 'Google' },
+                2: { model: 'gpt-4.1-mini', cost: '낮음', tokens: '1200', provider: 'OpenAI' },
+                3: { model: 'gpt-4.1', cost: '중간', tokens: '1500', provider: 'OpenAI' },
+                4: { model: 'gpt-4.1', cost: '높음', tokens: '2000', provider: 'OpenAI' },
+                5: { model: 'gpt-4.1', cost: '매우 높음', tokens: '2500', provider: 'OpenAI' }
             };
 
             const config = modelConfig[level];
             const modelInfoDisplay = document.getElementById('modelInfoDisplay');
 
             if (modelInfoDisplay && config) {
+                const providerIcon = config.provider === 'Google' ? '🔵' : '🟢';
                 modelInfoDisplay.innerHTML = `
-            <span class="model-name">모델: ${config.model}</span>
+            <span class="model-name">${providerIcon} ${config.model}</span>
             <span class="model-cost">비용: ${config.cost}</span>
             <span class="model-tokens">토큰: ${config.tokens}</span>
         `;
@@ -3550,6 +3613,14 @@
                 displayStats();
                 // 🔧 인증 시스템 초기화
                 initAuthSystem();
+
+                // 🤖 AI 모델 선택 초기화
+                const savedModel = localStorage.getItem('selectedAIModel') || 'auto';
+                const aiModelSelect = document.getElementById('aiModelSelect');
+                if (aiModelSelect) {
+                    aiModelSelect.value = savedModel;
+                    updateAIModelSelection();
+                }
 
                 // 🔧 UI 상태 초기 설정
                 updateAuthUI(!!currentUser);
