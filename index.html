@@ -67,6 +67,17 @@
                         현재 모드: <strong>자동 최적화</strong> - 텍스트 길이에 따라 최적 모델 선택
                     </div>
 
+                    <!-- 🏭 전문 분야 선택 -->
+                    <div class="setting-item">
+                        <label class="setting-label">🏭 전문 분야<small>제조 자동화: 전문 용어 자동 적용</small></label>
+                        <div class="setting-control">
+                            <select id="domainSelect" onchange="updateDomainSelection()">
+                                <option value="general">📝 일반</option>
+                                <option value="manufacturing">🏭 제조 자동화</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="setting-item quality-setting-wrapper">
                         <div class="quality-setting-grid">
                             <label class="setting-label">번역 품질 vs 속도<small>높을수록 정확하지만 느림</small></label>
@@ -3250,7 +3261,8 @@
                         useAIContext: true,
                         contextualPrompt: contextualPrompt,
                         qualityLevel: qualityLevel,
-                        model: getOptimalModel(inputText) // 🤖 AI 모델 선택
+                        model: getOptimalModel(inputText), // 🤖 AI 모델 선택
+                        domain: selectedDomain // 🏭 전문 분야
                     };
                 } else {
                     // 일반 번역 요청
@@ -3259,7 +3271,8 @@
                         inputText: inputText,
                         targetLang: targetLang,
                         getPronunciation: isPronunciationEnabled,
-                        model: getOptimalModel(inputText) // 🤖 AI 모델 선택
+                        model: getOptimalModel(inputText), // 🤖 AI 모델 선택
+                        domain: selectedDomain // 🏭 전문 분야
                     };
                 }
 
@@ -3356,6 +3369,24 @@
 
         // 🤖 AI 모델 선택 상태 변수
         let selectedAIModel = localStorage.getItem('selectedAIModel') || 'auto';
+
+        // 🏭 전문 분야 선택 상태 변수
+        let selectedDomain = localStorage.getItem('selectedDomain') || 'general';
+
+        // 🏭 전문 분야 선택 업데이트 함수
+        function updateDomainSelection() {
+            const select = document.getElementById('domainSelect');
+            if (!select) return;
+
+            selectedDomain = select.value;
+            localStorage.setItem('selectedDomain', selectedDomain);
+
+            console.log('[Domain] 선택된 분야:', selectedDomain);
+
+            if (selectedDomain === 'manufacturing') {
+                showStatus('🏭 제조 자동화 모드 활성화 - 전문 용어 자동 적용', 'success');
+            }
+        }
 
         // 🤖 AI 모델 선택 업데이트 함수
         function updateAIModelSelection() {
@@ -3620,6 +3651,13 @@
                 if (aiModelSelect) {
                     aiModelSelect.value = savedModel;
                     updateAIModelSelection();
+                }
+
+                // 🏭 전문 분야 선택 초기화
+                const savedDomain = localStorage.getItem('selectedDomain') || 'general';
+                const domainSelect = document.getElementById('domainSelect');
+                if (domainSelect) {
+                    domainSelect.value = savedDomain;
                 }
 
                 // 🔧 UI 상태 초기 설정
