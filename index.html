@@ -3285,7 +3285,17 @@
                 const result = await response.json();
                 if (result.error) throw new Error(result.error);
 
+                // 📝 피드백 학습용 번역 정보 저장
+                lastOriginalText = inputText;
+                lastOriginalTranslation = result.translation;
+                lastTargetLang = targetLang;
+
                 displayTranslation(result.translation, result.pronunciation_hangul, inputText, false);
+
+                // 📝 피드백 적용 표시
+                if (result.feedbackApplied) {
+                    showStatus(`📝 사용자 피드백 적용됨 (${result.feedbackMatchType === 'exact' ? '정확 일치' : '유사 일치'})`, 'success');
+                }
 
                 // 번역 컨텍스트에 추가 (AI 모드일 때만)
                 if (aiContextMode) {
@@ -3385,6 +3395,66 @@
 
             if (selectedDomain === 'manufacturing') {
                 showStatus('🏭 제조 자동화 모드 활성화 - 전문 용어 자동 적용', 'success');
+            }
+        }
+
+        // 📝 번역 피드백 학습 변수
+        let lastOriginalText = '';
+        let lastOriginalTranslation = '';
+        let lastTargetLang = '';
+
+        // 📝 번역 피드백 저장 함수
+        async function saveTranslationFeedback(correctedTranslation) {
+            if (!currentUser || !lastOriginalText) {
+                showStatus('❌ 피드백 저장: 로그인이 필요합니다.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    },
+                    body: JSON.stringify({
+                        action: 'save-feedback',
+                        originalText: lastOriginalText,
+                        originalTranslation: lastOriginalTranslation,
+                        correctedTranslation: correctedTranslation,
+                        feedbackTargetLang: lastTargetLang
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showStatus('✅ 피드백 저장 완료! 다음에 동일한 문장 번역 시 적용됩니다.', 'success');
+                } else {
+                    showStatus('❌ 피드백 저장 실패: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('[Feedback] 저장 오류:', error);
+                showStatus('❌ 피드백 저장 중 오류 발생', 'error');
+            }
+        }
+
+        // 📝 번역 수정 모달 표시
+        function showEditTranslationModal() {
+            if (!lastOriginalTranslation) {
+                showStatus('수정할 번역이 없습니다.', 'error');
+                return;
+            }
+
+            const corrected = prompt('📝 번역 수정:\n\n원문: ' + lastOriginalText + '\n\n현재 번역을 수정해주세요:', lastOriginalTranslation);
+
+            if (corrected && corrected !== lastOriginalTranslation) {
+                saveTranslationFeedback(corrected);
+
+                // UI에 수정된 번역 즉시 반영
+                const outputEl = document.getElementById('outputText');
+                if (outputEl) {
+                    outputEl.innerText = corrected;
+                }
             }
         }
 
