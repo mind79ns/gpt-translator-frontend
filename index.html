@@ -5,8 +5,58 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GPT 양방향 음성 번역기 Pro v6.0 - AI 문맥 번역 고도화</title>
+    
+    <!-- 📱 PWA 설정 - 모바일 최적화 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GPT 번역기">
+    
     <link rel="stylesheet" href="css/styles.css">
     <!-- 성능 최적화: CSS 외부 파일로 분리하여 캐싱 가능 -->
+    
+    <!-- 🔒 중복 탭 방지 스크립트 -->
+    <script>
+    (function() {
+        const TAB_ID = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        const CHANNEL_NAME = 'gpt-translator-tab-channel';
+        
+        // BroadcastChannel로 탭 간 통신
+        if (typeof BroadcastChannel !== 'undefined') {
+            const channel = new BroadcastChannel(CHANNEL_NAME);
+            
+            // 새 탭 알림
+            channel.postMessage({ type: 'NEW_TAB', tabId: TAB_ID });
+            
+            // 기존 탭에서 응답 수신
+            channel.onmessage = function(event) {
+                if (event.data.type === 'TAB_EXISTS' && event.data.tabId !== TAB_ID) {
+                    // 기존 탭이 있으면 현재 탭 닫기 유도
+                    if (confirm('⚠️ 이미 다른 탭에서 번역기가 실행 중입니다.\n\n기존 탭으로 이동하시겠습니까?\n(확인: 이 탭 닫기, 취소: 계속 사용)')) {
+                        window.close();
+                        // 닫기 실패 시 안내
+                        setTimeout(function() {
+                            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a2e;color:white;text-align:center;padding:20px;"><div><h2>⚠️ 중복 탭 감지</h2><p>다른 탭에서 이미 번역기가 실행 중입니다.<br>해당 탭으로 이동해주세요.</p><button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;background:#6366f1;color:white;border:none;border-radius:8px;cursor:pointer;">여기서 계속 사용</button></div></div>';
+                        }, 100);
+                    }
+                }
+                if (event.data.type === 'NEW_TAB' && event.data.tabId !== TAB_ID) {
+                    // 새 탭에게 이미 탭이 있음을 알림
+                    channel.postMessage({ type: 'TAB_EXISTS', tabId: TAB_ID });
+                }
+            };
+            
+            // 탭 닫힐 때 알림
+            window.addEventListener('beforeunload', function() {
+                channel.postMessage({ type: 'TAB_CLOSED', tabId: TAB_ID });
+            });
+        }
+        
+        // 오디오 컨텍스트 중복 방지를 위한 전역 플래그
+        window.GPT_TRANSLATOR_TAB_ID = TAB_ID;
+    })();
+    </script>
 </head>
 
 <body>
