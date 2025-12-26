@@ -615,6 +615,56 @@
         const API_URL = 'https://knstranslator.netlify.app/.netlify/functions/translate';
         const AUTH_API_URL = 'https://knstranslator.netlify.app/.netlify/functions/auth'; // 🔧 추가: 인증 API URL
 
+        // 🔄 네트워크 재시도 유틸리티 (불안정한 네트워크 대응)
+        async function fetchWithRetry(url, options, maxRetries = 3) {
+            // 오프라인 상태 체크
+            if (!navigator.onLine) {
+                throw new Error('네트워크 연결이 없습니다. 인터넷 연결을 확인해주세요.');
+            }
+
+            let lastError;
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30초 타임아웃
+
+                    const response = await fetch(url, {
+                        ...options,
+                        signal: controller.signal
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok && response.status >= 500) {
+                        throw new Error(`서버 오류 (${response.status})`);
+                    }
+
+                    return response;
+                } catch (error) {
+                    lastError = error;
+
+                    // 취소된 요청은 재시도하지 않음
+                    if (error.name === 'AbortError') {
+                        throw new Error('요청 시간이 초과되었습니다. 네트워크 상태를 확인해주세요.');
+                    }
+
+                    // 마지막 시도가 아니면 대기 후 재시도
+                    if (attempt < maxRetries) {
+                        const delay = Math.pow(2, attempt - 1) * 1000; // 1초, 2초, 4초
+                        console.log(`[Network] 재시도 ${attempt}/${maxRetries}, ${delay}ms 후...`);
+                        showStatus(`⏳ 네트워크 재시도 중... (${attempt}/${maxRetries})`, 'warning');
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+            }
+
+            // 모든 재시도 실패
+            if (lastError.message.includes('fetch')) {
+                throw new Error('서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.');
+            }
+            throw lastError;
+        }
+
         // 🔐 사용자 인증 시스템
         let currentUser = null;
         let authToken = null;
@@ -3371,7 +3421,7 @@
                     };
                 }
 
-                const response = await fetch(API_URL, {
+                const response = await fetchWithRetry(API_URL, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
