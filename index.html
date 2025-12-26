@@ -5,57 +5,57 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GPT 양방향 음성 번역기 Pro v6.0 - AI 문맥 번역 고도화</title>
-    
+
     <!-- 📱 PWA 설정 - 모바일 최적화 -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6366f1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="GPT 번역기">
-    
+
     <link rel="stylesheet" href="css/styles.css">
     <!-- 성능 최적화: CSS 외부 파일로 분리하여 캐싱 가능 -->
-    
+
     <!-- 🔒 중복 탭 방지 스크립트 -->
     <script>
-    (function() {
-        const TAB_ID = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-        const CHANNEL_NAME = 'gpt-translator-tab-channel';
-        
-        // BroadcastChannel로 탭 간 통신
-        if (typeof BroadcastChannel !== 'undefined') {
-            const channel = new BroadcastChannel(CHANNEL_NAME);
-            
-            // 새 탭 알림
-            channel.postMessage({ type: 'NEW_TAB', tabId: TAB_ID });
-            
-            // 기존 탭에서 응답 수신
-            channel.onmessage = function(event) {
-                if (event.data.type === 'TAB_EXISTS' && event.data.tabId !== TAB_ID) {
-                    // 기존 탭이 있으면 현재 탭 닫기 유도
-                    if (confirm('⚠️ 이미 다른 탭에서 번역기가 실행 중입니다.\n\n기존 탭으로 이동하시겠습니까?\n(확인: 이 탭 닫기, 취소: 계속 사용)')) {
-                        window.close();
-                        // 닫기 실패 시 안내
-                        setTimeout(function() {
-                            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a2e;color:white;text-align:center;padding:20px;"><div><h2>⚠️ 중복 탭 감지</h2><p>다른 탭에서 이미 번역기가 실행 중입니다.<br>해당 탭으로 이동해주세요.</p><button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;background:#6366f1;color:white;border:none;border-radius:8px;cursor:pointer;">여기서 계속 사용</button></div></div>';
-                        }, 100);
+        (function () {
+            const TAB_ID = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            const CHANNEL_NAME = 'gpt-translator-tab-channel';
+
+            // BroadcastChannel로 탭 간 통신
+            if (typeof BroadcastChannel !== 'undefined') {
+                const channel = new BroadcastChannel(CHANNEL_NAME);
+
+                // 새 탭 알림
+                channel.postMessage({ type: 'NEW_TAB', tabId: TAB_ID });
+
+                // 기존 탭에서 응답 수신
+                channel.onmessage = function (event) {
+                    if (event.data.type === 'TAB_EXISTS' && event.data.tabId !== TAB_ID) {
+                        // 기존 탭이 있으면 현재 탭 닫기 유도
+                        if (confirm('⚠️ 이미 다른 탭에서 번역기가 실행 중입니다.\n\n기존 탭으로 이동하시겠습니까?\n(확인: 이 탭 닫기, 취소: 계속 사용)')) {
+                            window.close();
+                            // 닫기 실패 시 안내
+                            setTimeout(function () {
+                                document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a2e;color:white;text-align:center;padding:20px;"><div><h2>⚠️ 중복 탭 감지</h2><p>다른 탭에서 이미 번역기가 실행 중입니다.<br>해당 탭으로 이동해주세요.</p><button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;background:#6366f1;color:white;border:none;border-radius:8px;cursor:pointer;">여기서 계속 사용</button></div></div>';
+                            }, 100);
+                        }
                     }
-                }
-                if (event.data.type === 'NEW_TAB' && event.data.tabId !== TAB_ID) {
-                    // 새 탭에게 이미 탭이 있음을 알림
-                    channel.postMessage({ type: 'TAB_EXISTS', tabId: TAB_ID });
-                }
-            };
-            
-            // 탭 닫힐 때 알림
-            window.addEventListener('beforeunload', function() {
-                channel.postMessage({ type: 'TAB_CLOSED', tabId: TAB_ID });
-            });
-        }
-        
-        // 오디오 컨텍스트 중복 방지를 위한 전역 플래그
-        window.GPT_TRANSLATOR_TAB_ID = TAB_ID;
-    })();
+                    if (event.data.type === 'NEW_TAB' && event.data.tabId !== TAB_ID) {
+                        // 새 탭에게 이미 탭이 있음을 알림
+                        channel.postMessage({ type: 'TAB_EXISTS', tabId: TAB_ID });
+                    }
+                };
+
+                // 탭 닫힐 때 알림
+                window.addEventListener('beforeunload', function () {
+                    channel.postMessage({ type: 'TAB_CLOSED', tabId: TAB_ID });
+                });
+            }
+
+            // 오디오 컨텍스트 중복 방지를 위한 전역 플래그
+            window.GPT_TRANSLATOR_TAB_ID = TAB_ID;
+        })();
     </script>
 </head>
 
@@ -106,9 +106,9 @@
                         <div class="setting-control">
                             <select id="aiModelSelect" onchange="updateAIModelSelection()">
                                 <option value="auto">🔄 자동 최적화 (추천)</option>
-                                <option value="gpt-4.1">🟢 GPT-4.1 (고품질)</option>
-                                <option value="gpt-4.1-mini">🟢 GPT-4.1 Mini (빠름)</option>
-                                <option value="gemini-2.0-flash">🔵 Gemini 2.0 Flash (빠름/저렴)</option>
+                                <option value="gpt-4o">🟢 GPT-4o (최고 품질)</option>
+                                <option value="gpt-4o-mini">🟢 GPT-4o Mini (빠름)</option>
+                                <option value="gemini-1.5-flash">🔵 Gemini 1.5 Flash (초고속/안정)</option>
                             </select>
                         </div>
                     </div>
@@ -141,7 +141,7 @@
                         </div>
                         <!-- 옵션 1: 실시간 모델 정보 표시 -->
                         <div class="model-info-display" id="modelInfoDisplay">
-                            <span class="model-name">모델: gpt-4.1</span>
+                            <span class="model-name">모델: gpt-4o</span>
                             <span class="model-cost">비용: 중간</span>
                             <span class="model-tokens">토큰: 1500</span>
                         </div>
@@ -3571,7 +3571,53 @@
             }
         }
 
-        async function handleSpeak() { if (!currentTranslation) return; window.budgetExceeded && (els.ttsEngineMode.value = "google", showStatus("⛔ 예산 초과. Google TTS만 사용 가능", "error")); const e = els.targetLangSelect.value, t = els.ttsEngineMode.value; let a = "openai"; "google" === t ? a = "google" : "openai" === t ? a = "openai" : "auto" === t ? "Vietnamese" === e || currentTranslation.length < parseInt(els.autoThreshold.value) ? a = "google" : a = "openai" : "smart" === t ? currentTranslation.length < 100 || conversationState.isActive || "Vietnamese" === e ? a = "google" : a = "openai" : a = "openai"; const s = "google" === a ? els.googleVoiceSelect.value : els.voiceSelect.value, i = `${currentTranslation}:${e}:${a}:${s}`, o = cacheManager.getTTS(i); if (els.engineIndicator.textContent = a.charAt(0).toUpperCase(), els.engineIndicator.className = `engine-indicator ${a}`, els.engineIndicator.style.display = "inline-block", o) return queueAudioBlob(o), showStatus("🔊 캐시된 음성 재생", "success"), void cacheManager.addRecentPlay(currentSource, currentTranslation, e, a); showStatus("음성 생성 중...", "info"), usageTracker.track("tts", currentTranslation.length, a); try { const t = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "speak", inputText: currentTranslation, language: e, useGoogleTTS: "google" === a, voice: s, voiceName: s }) }); if (!t.ok) throw new Error(`API 오류: ${t.statusText}`); const o = await t.blob(); cacheManager.setTTS(i, o), queueAudioBlob(o), cacheManager.addRecentPlay(currentSource, currentTranslation, e, a), showStatus(`🔊 ${a} TTS 재생`, "success") } catch (e) { showStatus(`음성 생성 실패: ${e.message}`, "error") } }
+        // 📱 iOS 오디오 컨텍스트 잠금 해제 (전역 설정)
+        let audioContextUnlocked = false;
+        function unlockAudio() {
+            if (audioContextUnlocked) return;
+            initAudioContext();
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    audioContextUnlocked = true;
+                    // 빈 오디오 버퍼 재생으로 확실하게 잠금 해제
+                    const buffer = audioContext.createBuffer(1, 1, 22050);
+                    const source = audioContext.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(audioContext.destination);
+                    source.start(0);
+                });
+            } else {
+                audioContextUnlocked = true;
+            }
+            // 이벤트 리스너 제거 (한 번만 실행하면 됨)
+            document.removeEventListener('touchstart', unlockAudio);
+            document.removeEventListener('click', unlockAudio);
+        }
+        document.addEventListener('touchstart', unlockAudio, { passive: true });
+        document.addEventListener('click', unlockAudio, { passive: true });
+
+        async function handleSpeak() {
+            // 📱 iOS 호환성: 비동기 호출 전에 오디오 컨텍스트 초기화 (필수)
+            initAudioContext();
+
+            if (!currentTranslation) return;
+            window.budgetExceeded && (els.ttsEngineMode.value = "google", showStatus("⛔ 예산 초과. Google TTS만 사용 가능", "error"));
+            const e = els.targetLangSelect.value, t = els.ttsEngineMode.value;
+            let a = "openai";
+            "google" === t ? a = "google" : "openai" === t ? a = "openai" : "auto" === t ? "Vietnamese" === e || currentTranslation.length < parseInt(els.autoThreshold.value) ? a = "google" : a = "openai" : "smart" === t ? currentTranslation.length < 100 || conversationState.isActive || "Vietnamese" === e ? a = "google" : a = "openai" : a = "openai";
+            const s = "google" === a ? els.googleVoiceSelect.value : els.voiceSelect.value, i = `${currentTranslation}:${e}:${a}:${s}`, o = cacheManager.getTTS(i);
+            if (els.engineIndicator.textContent = a.charAt(0).toUpperCase(), els.engineIndicator.className = `engine-indicator ${a}`, els.engineIndicator.style.display = "inline-block", o) return queueAudioBlob(o), showStatus("🔊 캐시된 음성 재생", "success"), void cacheManager.addRecentPlay(currentSource, currentTranslation, e, a);
+            showStatus("음성 생성 중...", "info"), usageTracker.track("tts", currentTranslation.length, a);
+            try {
+                const t = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "speak", inputText: currentTranslation, language: e, useGoogleTTS: "google" === a, voice: s, voiceName: s }) });
+                if (!t.ok) throw new Error(`API 오류: ${t.statusText}`);
+                const o = await t.blob();
+                cacheManager.setTTS(i, o), queueAudioBlob(o), cacheManager.addRecentPlay(currentSource, currentTranslation, e, a), showStatus(`🔊 ${a} TTS 재생`, "success")
+            } catch (e) {
+                showStatus(`음성 생성 실패: ${e.message}`, "error")
+            }
+        }
+
         function handleVoiceTranslate() { recognition || setupSpeechRecognition(), isRecording ? recognition.stop() : (recognition.lang = langCodeMap[els.sourceLangSelect.value], recognition.start()) }
         function displayTranslation(e, t, a, s) { currentTranslation = e, currentSource = a, els.translation.textContent = e, els.pronunciationSection.style.display = isPronunciationEnabled ? "block" : "none", isPronunciationEnabled && (els.pronunciationContent.textContent = t || ""), els.speakBtn.disabled = !1, els.copyBtn.disabled = !1, els.cacheIndicator.style.display = s ? "inline-block" : "none" }
         function setupSpeechRecognition() { const e = window.SpeechRecognition || window.webkitSpeechRecognition; if (!e) return void showStatus("음성 인식 미지원 브라우저", "error"); recognition = new e, recognition.continuous = !1, recognition.interimResults = !0; let t = ""; recognition.onstart = () => { isRecording = !0, t = "", els.voiceBtn.classList.add("recording") }, recognition.onresult = e => { let a = ""; for (let s = e.resultIndex; s < e.results.length; ++s)e.results[s].isFinal ? t += e.results[s][0].transcript : a += e.results[s][0].transcript; conversationState.isActive || (els.inputText.value = t + a) }, recognition.onend = () => { isRecording = !1, els.voiceBtn.classList.remove("recording"); const e = t.trim(); conversationState.isActive ? e ? handleConversationTranslation(e) : startAutoRecognition() : e && (els.inputText.value = e, handleTranslate()) }, recognition.onerror = e => { showStatus(`음성 인식 오류: ${e.error}`, "error"), isRecording = !1, els.voiceBtn.classList.remove("recording") } }
@@ -3586,7 +3632,7 @@
         function showStatus(e, t = "") { els.status.textContent = e, els.status.className = `status ${t}`, setTimeout(() => { els.status.textContent = "", els.status.className = "status" }, 3e3) }
         function clearAllCache() { confirm("모든 캐시 데이터를 삭제하시겠습니까?") && (cacheManager.clear(), updateRecentPlays(), displayStats(), showStatus("✨ 캐시가 초기화되었습니다.", "success")) }
         function switchToNormalMode() { conversationState.isActive && stopConversation(), els.normalModeBtn.classList.add("active"), els.conversationModeBtn.classList.remove("active"), els.normalMode.classList.remove("hidden"), els.conversationMode.classList.remove("active") }
-        function switchToConversationMode() { els.conversationModeBtn.classList.add("active"), els.normalModeBtn.classList.remove("active"), els.normalMode.classList.add("hidden"), els.conversationMode.classList.add("active"), updateSpeakerLanguages() }
+        function switchToConversationMode() { els.conversationModeBtn.classList.add("active"), els.normalModeBtn.classList.remove("active"), els.normalMode.classList.add("hidden"), els.conversationMode.classList.add("active"), updateActiveSpeaker() }
         function updateSpeakerLanguages() { els.speakerLangA.textContent = els.sourceLangSelect.options[els.sourceLangSelect.selectedIndex].text, els.speakerLangB.textContent = els.targetLangSelect.options[els.targetLangSelect.selectedIndex].text }
         function startConversation() { conversationState.isActive = !0, conversationState.currentSpeaker = "A", conversationState.autoRecognition = !0, els.startConversationBtn.disabled = !0, els.stopConversationBtn.disabled = !1, updateActiveSpeaker(), startAutoRecognition() }
         function stopConversation() { conversationState.isActive = !1, conversationState.autoRecognition = !1, recognition && isRecording && recognition.stop(), els.startConversationBtn.disabled = !1, els.stopConversationBtn.disabled = !0, els.speakerCardA.classList.remove("active"), els.speakerCardB.classList.remove("active") }
