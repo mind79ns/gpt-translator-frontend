@@ -3701,8 +3701,22 @@
             if (!currentTranslation) return;
             window.budgetExceeded && (els.ttsEngineMode.value = "google", showStatus("⛔ 예산 초과. Google TTS만 사용 가능", "error"));
             const e = els.targetLangSelect.value, t = els.ttsEngineMode.value;
+            const threshold = parseInt(els.autoThreshold.value) || 50; // 임계값 설정
             let a = "openai";
-            "google" === t ? a = "google" : "openai" === t ? a = "openai" : "auto" === t ? "Vietnamese" === e || currentTranslation.length < parseInt(els.autoThreshold.value) ? a = "google" : a = "openai" : "smart" === t ? currentTranslation.length < 100 || conversationState.isActive || "Vietnamese" === e ? a = "google" : a = "openai" : a = "openai";
+            if ("google" === t) {
+                a = "google";
+            } else if ("openai" === t) {
+                a = "openai";
+            } else if ("auto" === t) {
+                // 자동 모드: 베트남어이거나 짧은 텍스트면 Google
+                a = ("Vietnamese" === e || currentTranslation.length < threshold) ? "google" : "openai";
+            } else if ("smart" === t) {
+                // 스마트 모드: 임계값 기준으로 엔진 선택
+                // 텍스트가 임계값 이하면 Google (무료), 초과하면 OpenAI (고품질)
+                a = (currentTranslation.length <= threshold) ? "google" : "openai";
+            } else {
+                a = "openai";
+            }
             const s = "google" === a ? els.googleVoiceSelect.value : els.voiceSelect.value, i = `${currentTranslation}:${e}:${a}:${s}`, o = cacheManager.getTTS(i);
             if (els.engineIndicator.textContent = a.charAt(0).toUpperCase(), els.engineIndicator.className = `engine-indicator ${a}`, els.engineIndicator.style.display = "inline-block", o) return queueAudioBlob(o), showStatus("🔊 캐시된 음성 재생", "success"), void cacheManager.addRecentPlay(currentSource, currentTranslation, e, a);
             showStatus("음성 생성 중...", "info"), usageTracker.track("tts", currentTranslation.length, a);
