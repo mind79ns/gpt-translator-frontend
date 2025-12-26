@@ -466,15 +466,40 @@ button:hover {
     text-align: right;
 }
 
-/* 토글 스위치 (체크박스 기반) */
+/* 토글 스위치 - 공통 스타일 */
 .toggle-switch {
     position: relative;
     display: inline-block;
     width: 50px;
     height: 26px;
     flex-shrink: 0;
+    background: #ccc;
+    border-radius: 26px;
+    cursor: pointer;
 }
 
+/* ===== DIV 기반 토글 (기존 발음 도우미 등) ===== */
+.toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+
+.toggle-switch.active {
+    background: var(--primary);
+}
+
+.toggle-switch.active::after {
+    transform: translateX(24px);
+}
+
+/* ===== CHECKBOX 기반 토글 (스트리밍 모드 등) ===== */
 .toggle-switch input {
     opacity: 0;
     width: 0;
@@ -506,11 +531,20 @@ button:hover {
     border-radius: 50%;
 }
 
-.toggle-switch input:checked + .toggle-slider {
+/* checkbox 있을 때 ::after 숨김 (슬라이더가 대신 표시) */
+.toggle-switch:has(input) {
+    background: transparent;
+}
+
+.toggle-switch:has(input)::after {
+    display: none;
+}
+
+.toggle-switch input:checked+.toggle-slider {
     background-color: var(--primary);
 }
 
-.toggle-switch input:checked + .toggle-slider::before {
+.toggle-switch input:checked+.toggle-slider::before {
     transform: translateX(24px);
 }
 
@@ -1295,10 +1329,12 @@ button:hover {
 }
 
 @keyframes pulse {
+
     0%,
     100% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(1.2);
     }
@@ -2009,7 +2045,8 @@ button:hover {
     border-radius: 8px;
     border-left: 4px solid var(--primary);
     margin-top: 15px;
-    display: none; /* UI 오류 수정: 하단 불필요한 정보 숨김 */
+    display: none;
+    /* UI 오류 수정: 하단 불필요한 정보 숨김 */
 }
 
 .auth-info small {
