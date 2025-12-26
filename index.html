@@ -117,6 +117,19 @@
                         현재 모드: <strong>자동 최적화</strong> - 텍스트 길이에 따라 최적 모델 선택
                     </div>
 
+                    <!-- 🚀 스트리밍 모드 토글 -->
+                    <div class="setting-item">
+                        <label class="setting-label">🚀 스트리밍 모드<small>번역 결과를 실시간으로 표시 (실험적)</small></label>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="streamingModeToggle" onchange="toggleStreamingMode()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span id="streamingModeStatus"
+                                style="font-size: 11px; margin-left: 8px; color: var(--text-secondary);">비활성화</span>
+                        </div>
+                    </div>
+
                     <!-- 🏭 전문 분야 선택 -->
                     <div class="setting-item">
                         <label class="setting-label">🏭 전문 분야<small>제조 자동화: 전문 용어 자동 적용</small></label>
@@ -1726,6 +1739,37 @@
         let translationContext = [];
         let currentTranslationStyle = 'balanced';
         let qualityLevel = 3;
+        let streamingMode = false; // 🚀 스트리밍 모드 상태
+
+        // 🚀 스트리밍 모드 토글 함수
+        function toggleStreamingMode() {
+            const toggle = document.getElementById('streamingModeToggle');
+            const status = document.getElementById('streamingModeStatus');
+            streamingMode = toggle?.checked || false;
+
+            if (status) {
+                status.textContent = streamingMode ? '활성화 ⚡' : '비활성화';
+                status.style.color = streamingMode ? 'var(--primary)' : 'var(--text-secondary)';
+            }
+
+            // 로컬 스토리지에 저장
+            localStorage.setItem('streamingMode', streamingMode);
+            console.log('[Streaming] 스트리밍 모드:', streamingMode ? 'ON' : 'OFF');
+        }
+
+        // 스트리밍 설정 로드
+        function loadStreamingSettings() {
+            const saved = localStorage.getItem('streamingMode');
+            streamingMode = saved === 'true';
+            const toggle = document.getElementById('streamingModeToggle');
+            const status = document.getElementById('streamingModeStatus');
+
+            if (toggle) toggle.checked = streamingMode;
+            if (status) {
+                status.textContent = streamingMode ? '활성화 ⚡' : '비활성화';
+                status.style.color = streamingMode ? 'var(--primary)' : 'var(--text-secondary)';
+            }
+        }
 
         // 고급 단어장 시스템 - 초기화
         let vocabularyDict = new Map();
@@ -3997,6 +4041,9 @@
                 });
 
                 console.log("✅ 번역기 v6.0 초기화 완료");
+
+                // 🚀 스트리밍 설정 로드
+                loadStreamingSettings();
 
                 // 🔧 모든 모달 강제 숨김 처리
                 // 🔧 모든 모달 강제 숨김 처리 (로그인 모달 제외)

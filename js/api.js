@@ -175,3 +175,75 @@ export function prefetchTranslation(text, sourceLang, targetLang, options = {}) 
     requestQueue.add(() => translateWithCache(text, sourceLang, targetLang, options))
         .catch(err => console.warn('[API] Prefetch 실패:', err));
 }
+
+// ========== 🚀 스트리밍 번역 API ==========
+export async function translateWithStreaming(text, targetLang, options = {}, onChunk = null) {
+    console.log('[Streaming] 스트리밍 번역 시작');
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(options.authToken && { 'Authorization': `Bearer ${options.authToken}` })
+            },
+            body: JSON.stringify({
+                action: 'translate-stream',
+                inputText: text,
+                targetLang: targetLang,
+                getPronunciation: options.getPronunciation !== false,
+                useAIContext: options.useAIContext || false,
+                qualityLevel: options.qualityLevel || 3,
+                model: options.model || 'auto',
+                domain: options.domain || 'general'
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (errorData.fallbackToNormal) {
+                console.log('[Streaming] 폴백 요청됨, 일반 모드로 전환');
+                return { fallback: true, error: errorData.error };
+            }
+            throw new Error(`스트리밍 API 오류: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // 청크 콜백 호출 (UI 업데이트용)
+        if (onChunk && data.chunks && data.chunks.length > 0) {
+            let displayedText = '';
+            for (const chunk of data.chunks) {
+                displayedText += chunk;
+                onChunk(displayedText);
+                // 시각적 효과를 위한 작은 딜레이
+                await new Promise(resolve => setTimeout(resolve, 20));
+            }
+        }
+
+        console.log('[Streaming] 스트리밍 완료:', data.streamingUsed ? '스트리밍 사용' : '일반 응답');
+        return data;
+
+    } catch (error) {
+        console.error('[Streaming] 스트리밍 오류:', error.message);
+        return { fallback: true, error: error.message };
+    }
+}
+
+// ========== 스트리밍 + 폴백 통합 함수 ==========
+export async function translateWithStreamingFallback(text, targetLang, options = {}, onChunk = null) {
+    // 먼저 스트리밍 시도
+    const streamResult = await translateWithStreaming(text, targetLang, options, onChunk);
+
+    // 폴백 필요 시 일반 번역 사용
+    if (streamResult.fallback) {
+        console.log('[Streaming] 일반 번역으로 폴백 중...');
+        return translateWithCache(text, 'auto', targetLang, {
+            ...options,
+            useAIContext: options.useAIContext,
+            qualityLevel: options.qualityLevel
+        });
+    }
+
+    return streamResult;
+}
