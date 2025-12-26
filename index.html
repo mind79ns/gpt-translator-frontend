@@ -297,15 +297,28 @@
                     <div class="result-header">
                         <span class="result-label">번역 결과<span id="cacheIndicator" class="cache-indicator"
                                 style="display: none;">캐시됨</span><span id="aiIndicator" class="engine-indicator ai"
-                                style="display: none;">AI</span></span>
+                                style="display: none;">AI</span><span id="feedbackIndicator" class="engine-indicator"
+                                style="display: none; background: var(--success);">📝</span></span>
                         <div class="result-actions">
                             <button class="btn-action" onclick="copyTranslation()" id="copyBtn" disabled>📋 복사</button>
                             <button class="btn-action" id="speakBtn" onclick="handleSpeak()" disabled>🔊 듣기<span
                                     id="engineIndicator" class="engine-indicator"
                                     style="display: none;"></span></button>
+                            <!-- 📝 피드백 편집 버튼 -->
+                            <button class="btn-action" id="editFeedbackBtn" onclick="enableTranslationEdit()"
+                                style="display: none;">✏️ 수정</button>
+                            <button class="btn-action" id="saveFeedbackBtn" onclick="saveInlineTranslationFeedback()"
+                                style="display: none; background: var(--success);">💾 저장</button>
+                            <button class="btn-action" id="cancelFeedbackBtn" onclick="cancelTranslationEdit()"
+                                style="display: none; background: var(--error);">✖️</button>
                         </div>
                     </div>
-                    <div id="translation"></div>
+                    <div id="translation" contenteditable="false"></div>
+                    <!-- 🔄 역번역 검증 섹션 -->
+                    <div class="verification-section" id="verificationSection" style="display: none;">
+                        <button class="btn-verify" onclick="verifyTranslation()">🔄 역번역 검증</button>
+                        <div id="verificationResult" class="verification-result" style="display: none;"></div>
+                    </div>
                 </div>
                 <div class="pronunciation-section" id="pronunciationSection">
                     <div class="pronunciation-label" onclick="togglePronunciationView()">발음 도우미 <span
@@ -3586,7 +3599,7 @@
             }
         }
 
-        // 📝 번역 수정 모달 표시
+        // 📝 번역 수정 모달 표시 (레거시 - prompt 방식)
         function showEditTranslationModal() {
             if (!lastOriginalTranslation) {
                 showStatus('수정할 번역이 없습니다.', 'error');
@@ -3599,11 +3612,169 @@
                 saveTranslationFeedback(corrected);
 
                 // UI에 수정된 번역 즉시 반영
-                const outputEl = document.getElementById('outputText');
-                if (outputEl) {
-                    outputEl.innerText = corrected;
-                }
+                els.translation.textContent = corrected;
+                currentTranslation = corrected;
             }
+        }
+
+        // 📝 인라인 번역 수정 활성화
+        function enableTranslationEdit() {
+            if (!currentTranslation) return;
+
+            const translationEl = els.translation;
+            translationEl.setAttribute('contenteditable', 'true');
+            translationEl.focus();
+
+            // 버튼 상태 변경
+            document.getElementById('editFeedbackBtn').style.display = 'none';
+            document.getElementById('saveFeedbackBtn').style.display = 'inline-flex';
+            document.getElementById('cancelFeedbackBtn').style.display = 'inline-flex';
+
+            showStatus('✏️ 번역을 수정한 후 저장 버튼을 누르세요', 'info');
+        }
+
+        // 📝 수정 취소
+        function cancelTranslationEdit() {
+            const translationEl = els.translation;
+            translationEl.setAttribute('contenteditable', 'false');
+            translationEl.textContent = currentTranslation; // 원래 번역으로 복원
+
+            // 버튼 상태 변경
+            document.getElementById('editFeedbackBtn').style.display = 'inline-flex';
+            document.getElementById('saveFeedbackBtn').style.display = 'none';
+            document.getElementById('cancelFeedbackBtn').style.display = 'none';
+
+            showStatus('수정이 취소되었습니다', 'info');
+        }
+
+        // 📝 인라인 번역 피드백 저장 (인라인 편집 전용)
+        async function saveInlineTranslationFeedback() {
+            const translationEl = els.translation;
+            const correctedTranslation = translationEl.textContent.trim();
+
+            if (!correctedTranslation) {
+                showStatus('번역 내용이 비어있습니다', 'error');
+                return;
+            }
+
+            if (correctedTranslation === lastOriginalTranslation) {
+                showStatus('변경 사항이 없습니다', 'info');
+                cancelTranslationEdit();
+                return;
+            }
+
+            // 편집 모드 종료
+            translationEl.setAttribute('contenteditable', 'false');
+            document.getElementById('editFeedbackBtn').style.display = 'inline-flex';
+            document.getElementById('saveFeedbackBtn').style.display = 'none';
+            document.getElementById('cancelFeedbackBtn').style.display = 'none';
+
+            // 피드백 저장 호출
+            await saveTranslationFeedback(correctedTranslation);
+
+            // 현재 번역 업데이트
+            currentTranslation = correctedTranslation;
+        }
+
+        // 🔄 역번역 검증 함수
+        async function verifyTranslation() {
+            if (!currentTranslation || !lastOriginalText) {
+                showStatus('검증할 번역이 없습니다', 'error');
+                return;
+            }
+
+            const verifyBtn = document.querySelector('.btn-verify');
+            const resultEl = document.getElementById('verificationResult');
+
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = '🔄 검증 중...';
+            resultEl.style.display = 'none';
+
+            try {
+                // 역번역 요청 (번역된 결과를 원래 언어로 다시 번역)
+                const sourceLang = els.sourceLangSelect.value;
+                const targetLang = els.targetLangSelect.value;
+
+                const response = await fetchWithRetry(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                    },
+                    body: JSON.stringify({
+                        action: 'translate',
+                        inputText: currentTranslation,
+                        targetLang: sourceLang, // 역번역: 대상 언어 → 원본 언어
+                        getPronunciation: false
+                    })
+                });
+
+                const result = await response.json();
+                if (result.error) throw new Error(result.error);
+
+                const backTranslation = result.translation;
+
+                // 유사도 계산 (간단한 단어 기반)
+                const accuracy = calculateSimilarity(lastOriginalText, backTranslation);
+
+                // 결과 표시
+                showVerificationResult(accuracy, backTranslation);
+
+            } catch (error) {
+                showStatus(`검증 실패: ${error.message}`, 'error');
+            } finally {
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = '🔄 역번역 검증';
+            }
+        }
+
+        // 📊 텍스트 유사도 계산
+        function calculateSimilarity(text1, text2) {
+            const words1 = text1.toLowerCase().replace(/[^\w\s가-힣]/g, '').split(/\s+/);
+            const words2 = text2.toLowerCase().replace(/[^\w\s가-힣]/g, '').split(/\s+/);
+
+            const set1 = new Set(words1);
+            const set2 = new Set(words2);
+
+            const intersection = [...set1].filter(w => set2.has(w));
+            const union = new Set([...set1, ...set2]);
+
+            // Jaccard 유사도
+            if (union.size === 0) return 0;
+            return (intersection.length / union.size) * 100;
+        }
+
+        // 📊 검증 결과 표시
+        function showVerificationResult(accuracy, backTranslation) {
+            const resultEl = document.getElementById('verificationResult');
+
+            let level, emoji, message;
+            if (accuracy >= 70) {
+                level = 'high';
+                emoji = '✅';
+                message = '번역 품질이 우수합니다!';
+            } else if (accuracy >= 40) {
+                level = 'medium';
+                emoji = '⚠️';
+                message = '번역이 대체로 정확하나 일부 뉘앙스가 다를 수 있습니다.';
+            } else {
+                level = 'low';
+                emoji = '❌';
+                message = '번역 정확도가 낮을 수 있습니다. 문맥을 확인해주세요.';
+            }
+
+            resultEl.className = `verification-result ${level}`;
+            resultEl.innerHTML = `
+                <div><strong>${emoji} 정확도: ${accuracy.toFixed(0)}%</strong></div>
+                <div style="margin-top: 5px; font-size: 12px;">${message}</div>
+                <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
+                    <strong>역번역 결과:</strong> ${backTranslation}
+                </div>
+                <div class="accuracy-bar">
+                    <div class="accuracy-fill" style="width: ${accuracy}%"></div>
+                </div>
+            `;
+            resultEl.style.display = 'block';
         }
 
         // 🤖 AI 모델 선택 업데이트 함수
@@ -3731,7 +3902,33 @@
         }
 
         function handleVoiceTranslate() { recognition || setupSpeechRecognition(), isRecording ? recognition.stop() : (recognition.lang = langCodeMap[els.sourceLangSelect.value], recognition.start()) }
-        function displayTranslation(e, t, a, s) { currentTranslation = e, currentSource = a, els.translation.textContent = e, els.pronunciationSection.style.display = isPronunciationEnabled ? "block" : "none", isPronunciationEnabled && (els.pronunciationContent.textContent = t || ""), els.speakBtn.disabled = !1, els.copyBtn.disabled = !1, els.cacheIndicator.style.display = s ? "inline-block" : "none" }
+        function displayTranslation(e, t, a, s) {
+            currentTranslation = e;
+            currentSource = a;
+            els.translation.textContent = e;
+            els.translation.setAttribute('contenteditable', 'false'); // 편집 모드 초기화
+            els.pronunciationSection.style.display = isPronunciationEnabled ? "block" : "none";
+            isPronunciationEnabled && (els.pronunciationContent.textContent = t || "");
+            els.speakBtn.disabled = !1;
+            els.copyBtn.disabled = !1;
+            els.cacheIndicator.style.display = s ? "inline-block" : "none";
+
+            // 📝 피드백 편집 버튼 표시 (번역 결과가 있을 때)
+            const editBtn = document.getElementById('editFeedbackBtn');
+            const verifySection = document.getElementById('verificationSection');
+            if (editBtn) editBtn.style.display = e ? 'inline-flex' : 'none';
+            if (verifySection) verifySection.style.display = e ? 'block' : 'none';
+
+            // 저장/취소 버튼 초기 상태 숨김
+            const saveBtn = document.getElementById('saveFeedbackBtn');
+            const cancelBtn = document.getElementById('cancelFeedbackBtn');
+            if (saveBtn) saveBtn.style.display = 'none';
+            if (cancelBtn) cancelBtn.style.display = 'none';
+
+            // 검증 결과 초기화
+            const verifyResult = document.getElementById('verificationResult');
+            if (verifyResult) verifyResult.style.display = 'none';
+        }
         function setupSpeechRecognition() { const e = window.SpeechRecognition || window.webkitSpeechRecognition; if (!e) return void showStatus("음성 인식 미지원 브라우저", "error"); recognition = new e, recognition.continuous = !1, recognition.interimResults = !0; let t = ""; recognition.onstart = () => { isRecording = !0, t = "", els.voiceBtn.classList.add("recording") }, recognition.onresult = e => { let a = ""; for (let s = e.resultIndex; s < e.results.length; ++s)e.results[s].isFinal ? t += e.results[s][0].transcript : a += e.results[s][0].transcript; conversationState.isActive || (els.inputText.value = t + a) }, recognition.onend = () => { isRecording = !1, els.voiceBtn.classList.remove("recording"); const e = t.trim(); conversationState.isActive ? e ? handleConversationTranslation(e) : startAutoRecognition() : e && (els.inputText.value = e, handleTranslate()) }, recognition.onerror = e => { showStatus(`음성 인식 오류: ${e.error}`, "error"), isRecording = !1, els.voiceBtn.classList.remove("recording") } }
         function toggleDashboard() { els.dashboardModal.classList.toggle("active"), els.dashboardModal.classList.contains("active") && usageTracker.updateDisplay() }
         function toggleSettings() { els.settingsPanel.classList.toggle("active") }
@@ -3860,6 +4057,12 @@
         window.switchVocabTab = switchVocabTab;
         window.addTerminology = addTerminology;
         window.removeTerminology = removeTerminology;
+
+        // 📝 피드백 및 검증 전역 함수들
+        window.enableTranslationEdit = enableTranslationEdit;
+        window.cancelTranslationEdit = cancelTranslationEdit;
+        window.saveInlineTranslationFeedback = saveInlineTranslationFeedback;
+        window.verifyTranslation = verifyTranslation;
 
         // 모든 모달 닫기 함수
         function closeAllModals() {
